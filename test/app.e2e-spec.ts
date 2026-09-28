@@ -1,8 +1,9 @@
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { configurarApp } from './../src/configurar-app.js';
 
 // Teste de ponta a ponta: exige o PostgreSQL no ar (npm run db:up).
 describe('HealthController (e2e)', () => {
@@ -14,13 +15,7 @@ describe('HealthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+    configurarApp(app);
     await app.init();
   });
 

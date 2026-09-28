@@ -1,0 +1,224 @@
+# Erros da API
+
+Toda resposta de erro desta API — sem exceção — sai no mesmo formato, produzido
+pelo filtro global [`src/common/filters/http-exception.filter.ts`](../src/common/filters/http-exception.filter.ts).
+
+## Formato padrão
+
+```json
+{
+  "status": 404,
+  "erro": "RECURSO_NAO_ENCONTRADO",
+  "mensagem": "Cliente com id 99 não encontrado."
+}
+```
+
+| Campo      | Tipo     | Descrição                                                                 |
+| ---------- | -------- | ------------------------------------------------------------------------- |
+| `status`   | `number` | Status HTTP da resposta, repetido no corpo para facilitar o log do cliente |
+| `erro`     | `string` | Código estável em MAIÚSCULAS — é o que o cliente deve tratar em código     |
+| `mensagem` | `string` | Texto em português explicando o problema para quem está desenvolvendo      |
+| `detalhes` | `array`  | **Somente em erros de validação (400)**: um item por campo inválido        |
+
+O campo `detalhes` usa notação de ponto para campos aninhados, incluindo índices
+de array (`itens.0.quantidade`):
+
+```json
+{
+  "status": 400,
+  "erro": "DADOS_INVALIDOS",
+  "mensagem": "Os dados enviados são inválidos.",
+  "detalhes": [{ "campo": "email", "mensagem": "email deve ser um e-mail válido" }]
+}
+```
+
+A `mensagem` pode mudar de redação entre versões; o `erro` não. Nunca faça
+parsing da mensagem — trate o código.
+
+## Tabela de códigos
+
+| HTTP | Código                   | Quando ocorre                                                                     |
+| ---- | ------------------------ | --------------------------------------------------------------------------------- |
+| 400  | `DADOS_INVALIDOS`        | Corpo ou query reprovados na validação; `:id` que não é inteiro positivo; campo não declarado no DTO |
+| 400  | `JSON_INVALIDO`          | O corpo da requisição não é um JSON sintaticamente válido                         |
+| 401  | `NAO_AUTENTICADO`        | Rota protegida acessada sem token                                                 |
+| 401  | `TOKEN_INVALIDO`         | Token presente, porém inválido, malformado ou expirado                            |
+| 404  | `RECURSO_NAO_ENCONTRADO` | O id informado não existe (também cobre o `P2025` do Prisma)                       |
+| 404  | `ROTA_NAO_ENCONTRADA`    | A URL não corresponde a nenhuma rota da API                                       |
+| 409  | `REGISTRO_DUPLICADO`     | Violação de unicidade: CPF, e-mail, placa ou serviço repetido na mesma OS (`P2002`) |
+| 409  | `RECURSO_EM_USO`         | Exclusão bloqueada por registros vinculados (`P2003`, FKs com `Restrict`)          |
+| 409  | `OPERACAO_NAO_PERMITIDA` | A operação não faz sentido no estado atual do recurso (ex.: alterar OS concluída)  |
+| 500  | `ERRO_INTERNO`           | Qualquer falha inesperada. A resposta é sempre genérica; o erro completo fica no log do servidor |
+| 503  | `BANCO_INDISPONIVEL`     | `GET /health` não conseguiu falar com o PostgreSQL                                |
+
+## Exemplos concretos
+
+### 1. Payload inválido ao cadastrar cliente
+
+`POST /clientes` com `{ "nome": "", "cpf": "12345678900", "email": "ana#email" }`
+
+```json
+{
+  "status": 400,
+  "erro": "DADOS_INVALIDOS",
+  "mensagem": "Os dados enviados são inválidos.",
+  "detalhes": [
+    { "campo": "nome", "mensagem": "nome não pode ficar vazio" },
+    { "campo": "cpf", "mensagem": "cpf deve ser um CPF válido com 11 dígitos, sem pontos ou traços" },
+    { "campo": "email", "mensagem": "email deve ser um e-mail válido" }
+  ]
+}
+```
+
+### 2. Corpo com JSON malformado
+
+`POST /clientes` com o corpo `{"nome": `
+
+```json
+{
+  "status": 400,
+  "erro": "JSON_INVALIDO",
+  "mensagem": "O corpo da requisição não é um JSON válido."
+}
+```
+
+### 3. Token ausente
+
+`GET /clientes` sem o header `Authorization`
+
+```json
+{
+  "status": 401,
+  "erro": "NAO_AUTENTICADO",
+  "mensagem": "Autenticação necessária para acessar este recurso."
+}
+```
+
+### 4. Cliente não encontrado
+
+`GET /clientes/99`
+
+```json
+{
+  "status": 404,
+  "erro": "RECURSO_NAO_ENCONTRADO",
+  "mensagem": "Cliente com id 99 não encontrado."
+}
+```
+
+### 5. Rota inexistente
+
+`GET /clientess`
+
+```json
+{
+  "status": 404,
+  "erro": "ROTA_NAO_ENCONTRADA",
+  "mensagem": "Rota GET /clientess não encontrada."
+}
+```
+
+### 6. CPF duplicado
+
+`POST /clientes` com um CPF que já existe
+
+```json
+{
+  "status": 409,
+  "erro": "REGISTRO_DUPLICADO",
+  "mensagem": "Já existe um cliente com este CPF."
+}
+```
+
+> Sem tratamento específico no service, o filtro global traduz o `P2002` do
+> Prisma para `"Já existe um registro com este cpf."`. Quando quiser a mensagem
+> acima, lance `RegistroDuplicadoException` no service.
+
+### 7. Placa duplicada
+
+`POST /veiculos` com uma placa já cadastrada
+
+```json
+{
+  "status": 409,
+  "erro": "REGISTRO_DUPLICADO",
+  "mensagem": "Já existe um veículo com a placa ABC1D23."
+}
+```
+
+### 8. Exclusão de cliente que possui veículos
+
+`DELETE /clientes/3`
+
+```json
+{
+  "status": 409,
+  "erro": "RECURSO_EM_USO",
+  "mensagem": "O cliente não pode ser excluído pois possui veículos vinculados."
+}
+```
+
+> O mesmo acontece ao excluir um veículo com ordens de serviço, um mecânico com
+> ordens vinculadas ou um serviço já lançado em alguma OS — consequência das FKs
+> com `Restrict` descritas em [`modelo-dados.md`](./modelo-dados.md). Para
+> mecânicos e serviços, a saída é desativar (`ativo = false`) em vez de excluir.
+
+### 9. Alteração de ordem de serviço já concluída
+
+`PUT /ordens-servico/12` em uma OS com `status = "CONCLUIDA"`
+
+```json
+{
+  "status": 409,
+  "erro": "OPERACAO_NAO_PERMITIDA",
+  "mensagem": "A ordem de serviço 12 está concluída e não pode mais ser alterada."
+}
+```
+
+### 10. Erro interno
+
+Qualquer falha inesperada (bug, banco fora no meio da requisição, etc.)
+
+```json
+{
+  "status": 500,
+  "erro": "ERRO_INTERNO",
+  "mensagem": "Ocorreu um erro interno no servidor."
+}
+```
+
+> A resposta **nunca** inclui stack trace, nome de tabela, SQL ou mensagem
+> original. O erro completo é registrado no log do servidor pelo `Logger` do
+> Nest, com método, URL, status e stack.
+
+### 11. Banco de dados indisponível
+
+`GET /health` com o PostgreSQL fora do ar
+
+```json
+{
+  "status": 503,
+  "erro": "BANCO_INDISPONIVEL",
+  "mensagem": "Não foi possível conectar ao banco de dados."
+}
+```
+
+## Como lançar erros no código
+
+```ts
+// 404 padronizado
+throw new RecursoNaoEncontradoException('Cliente', id);
+
+// 409 com mensagem específica do recurso
+throw new RegistroDuplicadoException('Já existe um cliente com este CPF.');
+throw new RecursoEmUsoException(
+  'O cliente não pode ser excluído pois possui veículos vinculados.',
+);
+throw new OperacaoNaoPermitidaException(
+  `A ordem de serviço ${id} está concluída e não pode mais ser alterada.`,
+);
+```
+
+Erros do Prisma **não precisam de try/catch** nos services: o filtro global já
+traduz `P2002`, `P2003` e `P2025`. Só capture quando quiser uma mensagem mais
+específica que a genérica.

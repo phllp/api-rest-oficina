@@ -1,5 +1,6 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiErros } from '../common/decorators/api-erros.decorator.js';
 import { RespostaHealthDto } from './dto/health-response.dto.js';
 import { HealthService } from './health.service.js';
 
@@ -20,17 +21,7 @@ export class HealthController {
     description: 'API e banco de dados respondendo normalmente.',
     type: RespostaHealthDto,
   })
-  @ApiResponse({
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    description: 'Banco de dados indisponivel.',
-    schema: {
-      example: {
-        status: 503,
-        erro: 'BANCO_INDISPONIVEL',
-        mensagem: 'Nao foi possivel conectar ao banco de dados.',
-      },
-    },
-  })
+  @ApiErros(HttpStatus.SERVICE_UNAVAILABLE)
   verificar(): Promise<RespostaHealthDto> {
     return this.healthService.verificar();
   }

@@ -1,8 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { ApiException } from '../common/errors/api.exception.js';
+import { CodigosErro } from '../common/errors/codigos-erro.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RespostaHealthDto } from './dto/health-response.dto.js';
 
@@ -27,11 +25,11 @@ export class HealthService {
         erro instanceof Error ? erro.stack : String(erro),
       );
 
-      throw new ServiceUnavailableException({
-        status: 503,
-        erro: 'BANCO_INDISPONIVEL',
-        mensagem: 'Nao foi possivel conectar ao banco de dados.',
-      });
+      throw new ApiException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        CodigosErro.BANCO_INDISPONIVEL,
+        'Não foi possível conectar ao banco de dados.',
+      );
     }
   }
 }
