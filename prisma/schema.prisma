@@ -1,0 +1,13 @@
+// Schema do Prisma.
+// Etapa 1: apenas a configuracao da conexao. Os modelos de negocio
+// (clientes, veiculos, mecanicos, servicos, ordens de servico e usuarios)
+// serao adicionados nas proximas etapas.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

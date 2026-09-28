@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: oficina-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oficina
+      POSTGRES_PASSWORD: oficina
+      POSTGRES_DB: oficina
+    ports:
+      # A porta do container e sempre a 5432. A porta exposta no host pode ser
+      # trocada com DB_PORT no .env caso a 5432 ja esteja ocupada na sua maquina.
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - oficina-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U oficina -d oficina']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  oficina-pgdata:
