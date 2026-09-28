@@ -25,6 +25,14 @@ function diasAtras(dias: number): Date {
 }
 
 /**
+ * Remove a mascara de um telefone. A API armazena telefones somente com
+ * digitos (ver o DTO de clientes), e o seed precisa gravar no mesmo formato.
+ */
+function somenteDigitos(valor: string): string {
+  return valor.replace(/\D/g, '');
+}
+
+/**
  * Calcula os dois digitos verificadores de um CPF a partir dos 9 primeiros
  * digitos, para que os dados do seed passem em qualquer validacao de CPF.
  */
@@ -971,7 +979,7 @@ async function main(): Promise<void> {
           nome: cliente.nome,
           cpf: gerarCpf(cliente.cpfBase),
           email: `${primeiroNome}.${indice + 1}@email.com`,
-          telefone: cliente.telefone,
+          telefone: somenteDigitos(cliente.telefone),
         },
       }),
     );
@@ -1004,7 +1012,11 @@ async function main(): Promise<void> {
   console.log('Inserindo mecanicos...');
   const mecanicosCriados: Mecanico[] = [];
   for (const mecanico of mecanicos) {
-    mecanicosCriados.push(await prisma.mecanico.create({ data: mecanico }));
+    mecanicosCriados.push(
+      await prisma.mecanico.create({
+        data: { ...mecanico, telefone: somenteDigitos(mecanico.telefone) },
+      }),
+    );
   }
 
   console.log('Inserindo servicos...');

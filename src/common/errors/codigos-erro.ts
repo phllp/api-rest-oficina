@@ -42,20 +42,23 @@ export const STATUS_POR_CODIGO: Record<CodigoErro, number> = {
   BANCO_INDISPONIVEL: 503,
 };
 
-/** Descricao usada na documentacao Swagger de cada codigo. */
+/**
+ * Descricao de cada codigo na documentacao Swagger. Como e texto voltado ao
+ * usuario final, aqui os acentos sao bem-vindos.
+ */
 export const DESCRICOES_ERRO: Record<CodigoErro, string> = {
-  DADOS_INVALIDOS: 'Os dados enviados sao invalidos.',
-  JSON_INVALIDO: 'O corpo da requisicao nao e um JSON valido.',
-  NAO_AUTENTICADO: 'Autenticacao necessaria para acessar o recurso.',
-  TOKEN_INVALIDO: 'O token informado e invalido ou expirou.',
-  RECURSO_NAO_ENCONTRADO: 'O recurso informado nao existe.',
-  ROTA_NAO_ENCONTRADA: 'A rota solicitada nao existe.',
-  REGISTRO_DUPLICADO: 'Ja existe um registro com os dados informados.',
-  RECURSO_EM_USO: 'O registro possui vinculos e nao pode ser removido.',
+  DADOS_INVALIDOS: 'Os dados enviados são inválidos.',
+  JSON_INVALIDO: 'O corpo da requisição não é um JSON válido.',
+  NAO_AUTENTICADO: 'Autenticação necessária para acessar o recurso.',
+  TOKEN_INVALIDO: 'O token informado é inválido ou expirou.',
+  RECURSO_NAO_ENCONTRADO: 'O recurso informado não existe.',
+  ROTA_NAO_ENCONTRADA: 'A rota solicitada não existe.',
+  REGISTRO_DUPLICADO: 'Já existe um registro com os dados informados.',
+  RECURSO_EM_USO: 'O registro possui vínculos e não pode ser removido.',
   OPERACAO_NAO_PERMITIDA:
-    'A operacao nao e permitida no estado atual do recurso.',
+    'A operação não é permitida no estado atual do recurso.',
   ERRO_INTERNO: 'Ocorreu um erro interno no servidor.',
-  BANCO_INDISPONIVEL: 'O banco de dados esta indisponivel.',
+  BANCO_INDISPONIVEL: 'O banco de dados está indisponível.',
 };
 
 /**

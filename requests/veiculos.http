@@ -1,0 +1,161 @@
+### Recurso: Veiculos
+# Arquivo para a extensao REST Client do VS Code.
+# Suba a API com `npm run start:dev` e o banco com `npm run db:up`.
+# Os ids e dados usados aqui seguem o seed (`npm run db:seed`).
+
+@baseUrl = http://localhost:3000
+@veiculoId = 1
+@clienteId = 3
+@veiculoComOrdens = 1
+
+### Lista os veiculos (padrao: page=1, limit=10)
+GET {{baseUrl}}/veiculos
+
+### Lista a segunda pagina (o seed tem 35 veiculos)
+GET {{baseUrl}}/veiculos?page=2&limit=10
+
+### Filtra por placa (parcial; o valor e normalizado para maiusculas sem hifen)
+GET {{baseUrl}}/veiculos?placa=abc
+
+### Filtra por marca (parcial, sem diferenciar maiusculas)
+GET {{baseUrl}}/veiculos?marca=fiat
+
+### Filtra por modelo (parcial, sem diferenciar maiusculas)
+GET {{baseUrl}}/veiculos?modelo=onix
+
+### Filtra por ano exato
+GET {{baseUrl}}/veiculos?ano=2021
+
+### Filtra os veiculos de um cliente
+GET {{baseUrl}}/veiculos?cliente_id={{clienteId}}
+
+### Combina filtros e paginacao
+GET {{baseUrl}}/veiculos?marca=fiat&ano=2021&page=1&limit=5
+
+### Busca um veiculo pelo id (inclui o cliente resumido)
+GET {{baseUrl}}/veiculos/{{veiculoId}}
+
+### Cadastra um veiculo
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{
+  "placa": "MKQ4B18",
+  "marca": "Renault",
+  "modelo": "Kwid Zen 1.0",
+  "ano": 2024,
+  "cor": "Laranja",
+  "clienteId": 3
+}
+
+### Cadastra um veiculo aceitando placa em minusculas e com hifen
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{
+  "placa": "nva-2c34",
+  "marca": "Nissan",
+  "modelo": "Kicks Advance 1.6",
+  "ano": 2023,
+  "clienteId": 4
+}
+
+### Substitui os dados de um veiculo (PUT = substituicao completa)
+PUT {{baseUrl}}/veiculos/{{veiculoId}}
+Content-Type: application/json
+
+{
+  "placa": "ABC1234",
+  "marca": "Fiat",
+  "modelo": "Argo Trekking 1.3",
+  "ano": 2021,
+  "cor": "Cinza",
+  "clienteId": 3
+}
+
+### Transfere o veiculo para outro proprietario (troca o clienteId)
+PUT {{baseUrl}}/veiculos/{{veiculoId}}
+Content-Type: application/json
+
+{
+  "placa": "ABC1234",
+  "marca": "Fiat",
+  "modelo": "Argo Drive 1.0",
+  "ano": 2021,
+  "cor": "Branco",
+  "clienteId": 5
+}
+
+### Exclui um veiculo sem ordens de servico
+DELETE {{baseUrl}}/veiculos/35
+
+# ---------------------------------------------------------------------------
+# Casos de erro
+# ---------------------------------------------------------------------------
+
+### 400 - varios campos invalidos (veja o array "detalhes")
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{
+  "placa": "ABC-123",
+  "marca": "F",
+  "modelo": "",
+  "ano": 1900,
+  "clienteId": 0
+}
+
+### 400 - placa fora dos padroes aceitos
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{
+  "placa": "ABCD123",
+  "marca": "Fiat",
+  "modelo": "Mobi",
+  "ano": 2022,
+  "clienteId": 3
+}
+
+### 400 - JSON malformado
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{ "placa":
+
+### 400 - id nao inteiro
+GET {{baseUrl}}/veiculos/abc
+
+### 400 - cliente_id invalido no filtro
+GET {{baseUrl}}/veiculos?cliente_id=abc
+
+### 404 - veiculo inexistente
+GET {{baseUrl}}/veiculos/9999
+
+### 404 - cliente informado nao existe
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{
+  "placa": "MKQ4B18",
+  "marca": "Renault",
+  "modelo": "Kwid Zen 1.0",
+  "ano": 2024,
+  "clienteId": 9999
+}
+
+### 409 - placa ja cadastrada (placa do veiculo 1 do seed)
+POST {{baseUrl}}/veiculos
+Content-Type: application/json
+
+{
+  "placa": "ABC1234",
+  "marca": "Fiat",
+  "modelo": "Argo Drive 1.0",
+  "ano": 2021,
+  "cor": "Branco",
+  "clienteId": 3
+}
+
+### 409 - exclusao de veiculo que possui ordens de servico
+DELETE {{baseUrl}}/veiculos/{{veiculoComOrdens}}

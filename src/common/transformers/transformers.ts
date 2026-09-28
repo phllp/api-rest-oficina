@@ -18,6 +18,11 @@ export function paraPlaca({ value }: TransformFnParams): unknown {
     : value;
 }
 
+/** Normaliza para minusculas, usado em e-mails. */
+export function paraMinusculas({ value }: TransformFnParams): unknown {
+  return typeof value === 'string' ? value.trim().toLowerCase() : value;
+}
+
 /** Remove espacos das pontas de um texto. */
 export function paraTextoAparado({ value }: TransformFnParams): unknown {
   return typeof value === 'string' ? value.trim() : value;

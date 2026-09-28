@@ -28,7 +28,8 @@
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "db:test:prepare": "node --experimental-strip-types -e \"import('./test/global-setup.ts').then((m) => m.default())\""
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

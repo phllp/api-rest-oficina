@@ -1,0 +1,130 @@
+### Recurso: Clientes
+# Arquivo para a extensao REST Client do VS Code.
+# Suba a API com `npm run start:dev` e o banco com `npm run db:up`.
+# Os ids e dados usados aqui seguem o seed (`npm run db:seed`).
+
+@baseUrl = http://localhost:3000
+@clienteId = 1
+@clienteComVeiculos = 3
+
+### Lista os clientes (padrao: page=1, limit=10)
+GET {{baseUrl}}/clientes
+
+### Lista a segunda pagina (o seed tem 25 clientes)
+GET {{baseUrl}}/clientes?page=2&limit=10
+
+### Filtra por nome (busca parcial, sem diferenciar maiusculas)
+GET {{baseUrl}}/clientes?nome=ana
+
+### Filtra por CPF (busca exata, aceita mascara)
+GET {{baseUrl}}/clientes?cpf=529.982.247-25
+
+### Filtra por e-mail (busca parcial)
+GET {{baseUrl}}/clientes?email=email.com
+
+### Combina filtro e paginacao
+GET {{baseUrl}}/clientes?nome=a&page=1&limit=5
+
+### Busca um cliente pelo id (inclui os veiculos resumidos)
+GET {{baseUrl}}/clientes/{{clienteId}}
+
+### Lista os veiculos de um cliente que possui veiculos
+GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/veiculos
+
+### Lista os veiculos de um cliente sem veiculos (array vazio)
+GET {{baseUrl}}/clientes/1/veiculos
+
+### Cadastra um cliente
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{
+  "nome": "Joana Ferreira Martins",
+  "cpf": "84285379038",
+  "email": "joana.martins@email.com",
+  "telefone": "(47) 99555-1234"
+}
+
+### Substitui os dados de um cliente (PUT = substituicao completa)
+PUT {{baseUrl}}/clientes/{{clienteId}}
+Content-Type: application/json
+
+{
+  "nome": "Ana Paula Ribeiro de Souza",
+  "cpf": "52998224725",
+  "email": "ana.1@email.com",
+  "telefone": "47991012233"
+}
+
+### Exclui um cliente sem veiculos
+DELETE {{baseUrl}}/clientes/25
+
+# ---------------------------------------------------------------------------
+# Casos de erro
+# ---------------------------------------------------------------------------
+
+### 400 - varios campos invalidos (veja o array "detalhes")
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{
+  "nome": "A",
+  "cpf": "12345678900",
+  "email": "sem-arroba",
+  "telefone": "123"
+}
+
+### 400 - campo nao declarado no DTO (forbidNonWhitelisted)
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{
+  "nome": "Teste Whitelist",
+  "cpf": "84285379038",
+  "email": "teste.whitelist@email.com",
+  "telefone": "47995551234",
+  "apelido": "campo que nao existe"
+}
+
+### 400 - JSON malformado
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{ "nome":
+
+### 400 - id nao inteiro
+GET {{baseUrl}}/clientes/abc
+
+### 400 - page fora da faixa
+GET {{baseUrl}}/clientes?page=0
+
+### 404 - cliente inexistente
+GET {{baseUrl}}/clientes/9999
+
+### 404 - veiculos de um cliente inexistente
+GET {{baseUrl}}/clientes/9999/veiculos
+
+### 409 - CPF ja cadastrado (CPF do cliente 1 do seed)
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{
+  "nome": "Cliente Duplicado",
+  "cpf": "52998224725",
+  "email": "outro.email@email.com",
+  "telefone": "47991010101"
+}
+
+### 409 - e-mail ja cadastrado
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+
+{
+  "nome": "Cliente Duplicado",
+  "cpf": "84285379038",
+  "email": "ana.1@email.com",
+  "telefone": "47991010101"
+}
+
+### 409 - exclusao de cliente que possui veiculos
+DELETE {{baseUrl}}/clientes/{{clienteComVeiculos}}

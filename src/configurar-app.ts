@@ -34,6 +34,9 @@ export function configurarApp(app: INestApplication): void {
     )
     .setVersion('1.0')
     .addBearerAuth()
+    .addTag('health', 'Verificacao de disponibilidade da API e do banco')
+    .addTag('clientes', 'Cadastro de clientes e seus veiculos')
+    .addTag('veiculos', 'Cadastro de veiculos e vinculo com o proprietario')
     .build();
 
   const documento = SwaggerModule.createDocument(app, configuracaoSwagger);
