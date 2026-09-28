@@ -1,8 +1,3 @@
-// Schema do Prisma.
-// Etapa 1: apenas a configuracao da conexao. Os modelos de negocio
-// (clientes, veiculos, mecanicos, servicos, ordens de servico e usuarios)
-// serao adicionados nas proximas etapas.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,4 +5,145 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// Situacao de uma ordem de servico.
+enum StatusOrdemServico {
+  ABERTA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+
+  @@map("status_ordem_servico")
+}
+
+/// Cliente da oficina, dono de um ou mais veiculos.
+model Cliente {
+  id       Int    @id @default(autoincrement())
+  nome     String @db.VarChar(120)
+  /// Somente digitos, sem mascara.
+  cpf      String @unique @db.Char(11)
+  email    String @unique @db.VarChar(160)
+  telefone String @db.VarChar(20)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  veiculos Veiculo[]
+
+  @@index([nome])
+  @@map("clientes")
+}
+
+/// Veiculo pertencente a um cliente.
+model Veiculo {
+  id        Int     @id @default(autoincrement())
+  /// Maiuscula e sem hifen: padrao antigo (ABC1234) ou Mercosul (ABC1D23).
+  placa     String  @unique @db.VarChar(7)
+  marca     String  @db.VarChar(40)
+  modelo    String  @db.VarChar(60)
+  ano       Int
+  cor       String? @db.VarChar(30)
+  clienteId Int     @map("cliente_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cliente       Cliente        @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  ordensServico OrdemServico[]
+
+  @@index([marca])
+  @@index([clienteId])
+  @@map("veiculos")
+}
+
+/// Mecanico responsavel pela execucao das ordens de servico.
+model Mecanico {
+  id            Int     @id @default(autoincrement())
+  nome          String  @db.VarChar(120)
+  especialidade String  @db.VarChar(80)
+  telefone      String  @db.VarChar(20)
+  ativo         Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ordensServico OrdemServico[]
+
+  @@map("mecanicos")
+}
+
+/// Item do catalogo de servicos oferecidos pela oficina.
+model Servico {
+  id               Int     @id @default(autoincrement())
+  descricao        String  @db.VarChar(160)
+  preco            Decimal @db.Decimal(10, 2)
+  tempoEstimadoMin Int     @map("tempo_estimado_min")
+  ativo            Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  itens ItemOrdemServico[]
+
+  @@map("servicos")
+}
+
+/// Ordem de servico aberta para um veiculo.
+model OrdemServico {
+  id                Int                @id @default(autoincrement())
+  veiculoId         Int                @map("veiculo_id")
+  mecanicoId        Int?               @map("mecanico_id")
+  status            StatusOrdemServico @default(ABERTA)
+  descricaoProblema String             @map("descricao_problema") @db.VarChar(500)
+  observacoes       String?            @db.VarChar(500)
+  dataAbertura      DateTime           @default(now()) @map("data_abertura")
+  dataConclusao     DateTime?          @map("data_conclusao")
+  /// Soma de quantidade x precoUnitario dos itens.
+  valorTotal        Decimal            @default(0) @map("valor_total") @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  veiculo  Veiculo            @relation(fields: [veiculoId], references: [id], onDelete: Restrict)
+  mecanico Mecanico?          @relation(fields: [mecanicoId], references: [id], onDelete: Restrict)
+  itens    ItemOrdemServico[]
+
+  @@index([status])
+  @@index([dataAbertura])
+  @@index([veiculoId])
+  @@index([mecanicoId])
+  @@map("ordens_servico")
+}
+
+/// Juncao N:N entre ordem de servico e servico do catalogo.
+model ItemOrdemServico {
+  id             Int     @id @default(autoincrement())
+  ordemServicoId Int     @map("ordem_servico_id")
+  servicoId      Int     @map("servico_id")
+  quantidade     Int     @default(1)
+  /// Copia do preco do servico no momento da inclusao do item.
+  precoUnitario  Decimal @map("preco_unitario") @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ordemServico OrdemServico @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+  servico      Servico      @relation(fields: [servicoId], references: [id], onDelete: Restrict)
+
+  @@unique([ordemServicoId, servicoId])
+  @@map("itens_ordem_servico")
+}
+
+/// Usuario com acesso a API (etapa de autenticacao).
+model Usuario {
+  id        Int    @id @default(autoincrement())
+  nome      String @db.VarChar(120)
+  email     String @unique @db.VarChar(160)
+  senhaHash String @map("senha_hash") @db.VarChar(72)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("usuarios")
 }
