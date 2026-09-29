@@ -11,14 +11,22 @@ function valorDoCampo(argumentos: ValidationArguments, campo: string): unknown {
 
 /**
  * Valida uma faixa declarada em dois query params, garantindo que o campo
- * anotado nao seja maior que o outro (ex.: `preco_min` x `preco_max`).
+ * anotado nao seja maior que o outro.
  *
- * A validacao e ignorada quando um dos dois nao foi informado -- filtrar
- * apenas por um extremo da faixa e valido.
+ * Funciona com numeros (`preco_min` x `preco_max`) e com textos -- inclusive
+ * datas no formato `YYYY-MM-DD`, cuja ordem lexicografica coincide com a
+ * cronologica (`data_inicio` x `data_fim`).
+ *
+ * A validacao e ignorada quando um dos dois nao foi informado (filtrar por um
+ * unico extremo e valido) ou quando os tipos nao coincidem -- nesse caso o
+ * proprio @IsNumber/@Matches do campo cuida do erro.
  *
  * ```ts
  * @MenorOuIgualAoCampo('preco_max')
  * preco_min?: number;
+ *
+ * @MenorOuIgualAoCampo('data_fim')
+ * data_inicio?: string;
  * ```
  */
 export function MenorOuIgualAoCampo(
@@ -40,11 +48,15 @@ export function MenorOuIgualAoCampo(
 
           const limite = valorDoCampo(argumentos, campoLimite);
 
-          if (typeof valor !== 'number' || typeof limite !== 'number') {
-            return true;
+          if (typeof valor === 'number' && typeof limite === 'number') {
+            return valor <= limite;
           }
 
-          return valor <= limite;
+          if (typeof valor === 'string' && typeof limite === 'string') {
+            return valor <= limite;
+          }
+
+          return true;
         },
         defaultMessage: (argumentos?: ValidationArguments) =>
           `${String(argumentos?.property)} não pode ser maior que ${campoLimite}`,

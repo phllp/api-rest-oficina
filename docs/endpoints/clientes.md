@@ -12,6 +12,7 @@ descrito em [`../erros.md`](../erros.md). Os exemplos usam os dados do seed
 | POST   | `/clientes`              | Cadastra um cliente                |
 | PUT    | `/clientes/{id}`         | Substitui os dados de um cliente   |
 | DELETE | `/clientes/{id}`         | Exclui um cliente                  |
+| GET    | `/clientes/{id}/ordens-servico` | Ordens de serviço de todos os veículos do cliente |
 
 ---
 
@@ -264,3 +265,54 @@ registro que está sendo atualizado.
 | 400  | `DADOS_INVALIDOS`        | `id` não é um número inteiro positivo                                |
 | 404  | `RECURSO_NAO_ENCONTRADO` | Não existe cliente com o id informado                                |
 | 409  | `RECURSO_EM_USO`         | O cliente possui veículos: `"O cliente possui 3 veículo(s) cadastrado(s) e não pode ser excluído."` |
+
+---
+
+### GET /clientes/{id}/ordens-servico
+
+**Objetivo:** reunir as ordens de serviço de **todos os veículos** do cliente, em um array simples, sem paginação, da mais recente para a mais antiga.
+
+**Parâmetros de rota / consulta:**
+
+| Nome     | Tipo    | Obrigatório | Finalidade                                                                               |
+| -------- | ------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `id`     | integer | sim (rota)  | Id do cliente                                                                            |
+| `status` | string  | não         | Um ou mais status separados por vírgula (`ABERTA,EM_ANDAMENTO`); valor fora do enum → 400 |
+
+**JSON enviado:** Não possui corpo.
+
+**Resposta de sucesso:** `200 OK` — array no formato resumido de ordens de serviço.
+
+```json
+[
+  {
+    "id": 18,
+    "status": "ABERTA",
+    "dataAbertura": "2026-09-04T12:00:00.000Z",
+    "dataConclusao": null,
+    "valorTotal": 509.4,
+    "veiculo": { "id": 1, "placa": "ABC1234", "modelo": "Argo Drive 1.0" },
+    "mecanico": null
+  },
+  {
+    "id": 2,
+    "status": "CONCLUIDA",
+    "dataAbertura": "2026-04-10T12:00:00.000Z",
+    "dataConclusao": "2026-04-13T12:00:00.000Z",
+    "valorTotal": 800.5,
+    "veiculo": { "id": 3, "placa": "JKL9A21", "modelo": "Gol 1.6" },
+    "mecanico": { "id": 2, "nome": "Cleber Ramos" }
+  }
+]
+```
+
+Cliente sem veículos, ou com veículos que nunca passaram pela oficina, devolve `200` com `[]`.
+
+**Respostas de erro:**
+
+| HTTP | Código de erro           | Quando ocorre                                       |
+| ---- | ------------------------ | --------------------------------------------------- |
+| 400  | `DADOS_INVALIDOS`        | `id` não é um inteiro positivo, ou `status` inválido |
+| 404  | `RECURSO_NAO_ENCONTRADO` | Não existe cliente com o id informado               |
+
+O detalhe de cada ordem está em [`ordens-servico.md`](./ordens-servico.md).

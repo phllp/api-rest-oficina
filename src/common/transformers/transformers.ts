@@ -47,6 +47,30 @@ export function paraBooleano({ value }: TransformFnParams): unknown {
   return value;
 }
 
+/**
+ * Converte um query param com valores separados por virgula em lista:
+ * `'ABERTA,EM_ANDAMENTO'` -> `['ABERTA', 'EM_ANDAMENTO']`.
+ *
+ * Aparra os espacos e descarta entradas vazias. Valores que nao sao texto
+ * passam intactos, para o validador do DTO reprovar.
+ */
+export function paraListaSeparadaPorVirgula({
+  value,
+}: TransformFnParams): unknown {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 /** Remove espacos das pontas de um texto. */
 export function paraTextoAparado({ value }: TransformFnParams): unknown {
   return typeof value === 'string' ? value.trim() : value;

@@ -1,0 +1,241 @@
+### Recurso: Ordens de Servico
+# Arquivo para a extensao REST Client do VS Code.
+# Suba a API com `npm run start:dev` e o banco com `npm run db:up`.
+# Os ids e dados usados aqui seguem o seed (`npm run db:seed`).
+
+@baseUrl = http://localhost:3000
+@ordemId = 1
+@veiculoId = 1
+@mecanicoId = 2
+@clienteId = 3
+@servicoId = 1
+
+# ===========================================================================
+# ROTEIRO: ciclo de vida completo de uma ordem de servico
+# Execute as requisicoes desta secao em sequencia, de cima para baixo.
+# ===========================================================================
+
+### 1. Abre a ordem sem mecanico (nasce ABERTA)
+# @name abrirOrdem
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 1,
+  "descricaoProblema": "Motor perdendo potencia e consumo alto de combustivel.",
+  "observacoes": "Cliente relata que comecou depois de abastecer fora da cidade.",
+  "itens": [
+    { "servicoId": 1, "quantidade": 1 },
+    { "servicoId": 7, "quantidade": 1 }
+  ]
+}
+
+### 2. Confere o detalhe (itens com subtotal e valorTotal somado)
+GET {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+
+### 3. Tentar iniciar sem mecanico -> 409
+PATCH {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}/status
+Content-Type: application/json
+
+{ "status": "EM_ANDAMENTO" }
+
+### 4. Atribui um mecanico e ajusta os itens (PUT = substituicao completa)
+PUT {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+Content-Type: application/json
+
+{
+  "mecanicoId": 1,
+  "descricaoProblema": "Motor perdendo potencia e consumo alto de combustivel.",
+  "observacoes": "Diagnostico apontou bicos injetores sujos.",
+  "itens": [
+    { "servicoId": 1, "quantidade": 1 },
+    { "servicoId": 7, "quantidade": 1 },
+    { "servicoId": 2, "quantidade": 1 }
+  ]
+}
+
+### 5. Inicia o servico (ABERTA -> EM_ANDAMENTO)
+PATCH {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}/status
+Content-Type: application/json
+
+{ "status": "EM_ANDAMENTO" }
+
+### 6. Conclui (EM_ANDAMENTO -> CONCLUIDA; preenche dataConclusao)
+PATCH {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}/status
+Content-Type: application/json
+
+{ "status": "CONCLUIDA" }
+
+### 7. Tentar alterar depois de concluir -> 409
+PUT {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+Content-Type: application/json
+
+{
+  "mecanicoId": 1,
+  "descricaoProblema": "Tentando alterar uma ordem concluida.",
+  "itens": [{ "servicoId": 1, "quantidade": 1 }]
+}
+
+### 8. Tentar excluir depois de concluir -> 409
+DELETE {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+
+# ===========================================================================
+# Listagem e filtros
+# ===========================================================================
+
+### Lista (padrao: page=1, limit=10, da mais recente para a mais antiga)
+GET {{baseUrl}}/ordens-servico
+
+### Pagina 2 com 5 por pagina
+GET {{baseUrl}}/ordens-servico?page=2&limit=5
+
+### Filtra por um status
+GET {{baseUrl}}/ordens-servico?status=ABERTA
+
+### Filtra por varios status (separados por virgula)
+GET {{baseUrl}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
+
+### Ordens de um veiculo
+GET {{baseUrl}}/ordens-servico?veiculo_id={{veiculoId}}
+
+### Ordens de um mecanico
+GET {{baseUrl}}/ordens-servico?mecanico_id={{mecanicoId}}
+
+### Ordens de todos os veiculos de um cliente
+GET {{baseUrl}}/ordens-servico?cliente_id={{clienteId}}
+
+### Intervalo de abertura (ambos inclusivos, em UTC)
+GET {{baseUrl}}/ordens-servico?data_inicio=2026-04-01&data_fim=2026-09-30
+
+### Combina status, intervalo e paginacao
+GET {{baseUrl}}/ordens-servico?status=ABERTA,EM_ANDAMENTO&data_inicio=2026-04-01&page=1&limit=5
+
+### Detalhe de uma ordem
+GET {{baseUrl}}/ordens-servico/{{ordemId}}
+
+# ===========================================================================
+# Endpoints de relacionamento
+# ===========================================================================
+
+### Historico de um veiculo
+GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico
+
+### Historico de um veiculo, filtrando o status
+GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico?status=CONCLUIDA
+
+### Ordens de um mecanico
+GET {{baseUrl}}/mecanicos/{{mecanicoId}}/ordens-servico
+
+### Ordens de um cliente (todos os veiculos dele)
+GET {{baseUrl}}/clientes/{{clienteId}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
+
+# ===========================================================================
+# Casos de erro
+# ===========================================================================
+
+### 400 - varios campos invalidos
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 0,
+  "descricaoProblema": "abc",
+  "itens": []
+}
+
+### 400 - servicoId repetido nos itens
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 1,
+  "descricaoProblema": "Servico repetido nos itens.",
+  "itens": [
+    { "servicoId": 1, "quantidade": 1 },
+    { "servicoId": 1, "quantidade": 2 }
+  ]
+}
+
+### 400 - campos controlados pelo servidor nao podem vir no corpo
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 1,
+  "descricaoProblema": "Tentando definir status e valores.",
+  "status": "CONCLUIDA",
+  "valorTotal": 0,
+  "itens": [{ "servicoId": 1, "quantidade": 1, "precoUnitario": 1 }]
+}
+
+### 400 - veiculoId no PUT (o veiculo de uma ordem e imutavel)
+PUT {{baseUrl}}/ordens-servico/{{ordemId}}
+Content-Type: application/json
+
+{
+  "veiculoId": 2,
+  "descricaoProblema": "Tentando trocar o veiculo da ordem.",
+  "itens": [{ "servicoId": 1, "quantidade": 1 }]
+}
+
+### 400 - status fora do enum
+PATCH {{baseUrl}}/ordens-servico/{{ordemId}}/status
+Content-Type: application/json
+
+{ "status": "PAUSADA" }
+
+### 400 - status invalido no filtro
+GET {{baseUrl}}/ordens-servico?status=INVALIDO
+
+### 400 - data fora do formato YYYY-MM-DD
+GET {{baseUrl}}/ordens-servico?data_inicio=01/04/2026
+
+### 400 - data_inicio maior que data_fim
+GET {{baseUrl}}/ordens-servico?data_inicio=2026-09-30&data_fim=2026-04-01
+
+### 404 - ordem inexistente
+GET {{baseUrl}}/ordens-servico/9999
+
+### 404 - veiculo inexistente
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 9999,
+  "descricaoProblema": "Veiculo que nao existe.",
+  "itens": [{ "servicoId": 1, "quantidade": 1 }]
+}
+
+### 404 - servico inexistente
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 1,
+  "descricaoProblema": "Servico que nao existe.",
+  "itens": [{ "servicoId": 9999, "quantidade": 1 }]
+}
+
+### 409 - mecanico inativo (id 5 no seed: Sergio Bonfim)
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 1,
+  "mecanicoId": 5,
+  "descricaoProblema": "Mecanico inativo nao pode receber ordens.",
+  "itens": [{ "servicoId": 1, "quantidade": 1 }]
+}
+
+### 409 - servico inativo (id 10 no seed: Polimento tecnico e cristalizacao)
+POST {{baseUrl}}/ordens-servico
+Content-Type: application/json
+
+{
+  "veiculoId": 1,
+  "descricaoProblema": "Servico inativo nao pode ser lancado.",
+  "itens": [{ "servicoId": 10, "quantidade": 1 }]
+}
+
+### 404 - ordens de um veiculo inexistente
+GET {{baseUrl}}/veiculos/9999/ordens-servico

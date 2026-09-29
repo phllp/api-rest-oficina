@@ -47,7 +47,7 @@ parsing da mensagem — trate o código.
 | 404  | `ROTA_NAO_ENCONTRADA`    | A URL não corresponde a nenhuma rota da API                                       |
 | 409  | `REGISTRO_DUPLICADO`     | Violação de unicidade: CPF, e-mail, placa ou serviço repetido na mesma OS (`P2002`) |
 | 409  | `RECURSO_EM_USO`         | Exclusão bloqueada por registros vinculados (`P2003`, FKs com `Restrict`)          |
-| 409  | `OPERACAO_NAO_PERMITIDA` | A operação não faz sentido no estado atual do recurso (ex.: alterar OS concluída)  |
+| 409  | `OPERACAO_NAO_PERMITIDA` | A operação não faz sentido no estado atual do recurso: transição de status inválida, ordem em estado final, mecânico ou serviço inativo |
 | 500  | `ERRO_INTERNO`           | Qualquer falha inesperada. A resposta é sempre genérica; o erro completo fica no log do servidor |
 | 503  | `BANCO_INDISPONIVEL`     | `GET /health` não conseguiu falar com o PostgreSQL                                |
 
@@ -163,15 +163,85 @@ parsing da mensagem — trate o código.
 > com `Restrict` descritas em [`modelo-dados.md`](./modelo-dados.md). Para
 > mecânicos e serviços, a saída é desativar (`ativo = false`) em vez de excluir.
 
-### 9. Alteração de ordem de serviço já concluída
+### 9. Alteração de ordem de serviço já finalizada
 
-`PUT /ordens-servico/12` em uma OS com `status = "CONCLUIDA"`
+`PUT /ordens-servico/12` (ou `DELETE`, ou `PATCH` de status) em uma OS com
+`status = "CONCLUIDA"`
 
 ```json
 {
   "status": 409,
   "erro": "OPERACAO_NAO_PERMITIDA",
-  "mensagem": "A ordem de serviço 12 está concluída e não pode mais ser alterada."
+  "mensagem": "Não é possível alterar uma ordem de serviço com status CONCLUIDA."
+}
+```
+
+O mesmo vale para `CANCELADA`: os dois são estados finais.
+
+### 9.1. Transição de status inválida
+
+`PATCH /ordens-servico/12/status` com `{ "status": "CONCLUIDA" }` em uma ordem
+ainda `ABERTA` (é preciso passar por `EM_ANDAMENTO`)
+
+```json
+{
+  "status": 409,
+  "erro": "OPERACAO_NAO_PERMITIDA",
+  "mensagem": "Transição de status inválida: ABERTA → CONCLUIDA."
+}
+```
+
+As transições permitidas estão no diagrama de [ciclo de vida](./endpoints/ordens-servico.md#ciclo-de-vida).
+
+### 9.2. Status que exige mecânico atribuído
+
+`PATCH /ordens-servico/12/status` com `{ "status": "EM_ANDAMENTO" }` em uma ordem
+sem mecânico
+
+```json
+{
+  "status": 409,
+  "erro": "OPERACAO_NAO_PERMITIDA",
+  "mensagem": "A ordem de serviço precisa de um mecânico atribuído para ir para o status EM_ANDAMENTO. Informe o mecanicoId em PUT /ordens-servico/12 antes de alterar o status."
+}
+```
+
+### 9.3. Mecânico inativo recebendo ordem
+
+`POST /ordens-servico` (ou `PUT`) com o `mecanicoId` de um mecânico desativado
+
+```json
+{
+  "status": 409,
+  "erro": "OPERACAO_NAO_PERMITIDA",
+  "mensagem": "O mecânico Sergio Bonfim está inativo e não pode receber ordens de serviço."
+}
+```
+
+> Manter na ordem um mecânico que foi desativado **depois** de ser atribuído é
+> permitido — a regra impede apenas novas atribuições.
+
+### 9.4. Serviço inativo lançado em uma ordem
+
+`POST /ordens-servico` (ou `PUT`) com um `servicoId` fora do catálogo ativo
+
+```json
+{
+  "status": 409,
+  "erro": "OPERACAO_NAO_PERMITIDA",
+  "mensagem": "O serviço \"Polimento tecnico e cristalizacao\" está inativo e não pode ser lançado em uma ordem de serviço."
+}
+```
+
+### 9.5. Exclusão de ordem já iniciada
+
+`DELETE /ordens-servico/12` em uma ordem `EM_ANDAMENTO`
+
+```json
+{
+  "status": 409,
+  "erro": "OPERACAO_NAO_PERMITIDA",
+  "mensagem": "Só é possível excluir uma ordem de serviço com status ABERTA, e esta está EM_ANDAMENTO. Para encerrá-la sem execução, use PATCH /ordens-servico/12/status com CANCELADA."
 }
 ```
 
@@ -208,6 +278,7 @@ Qualquer falha inesperada (bug, banco fora no meio da requisição, etc.)
 ```ts
 // 404 padronizado
 throw new RecursoNaoEncontradoException('Cliente', id);
+throw new RecursoNaoEncontradoException('Ordem de serviço', id);
 
 // 409 com mensagem específica do recurso
 throw new RegistroDuplicadoException('Já existe um cliente com este CPF.');

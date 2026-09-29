@@ -11,8 +11,7 @@ descrito em [`../erros.md`](../erros.md). Os exemplos usam os dados do seed
 | POST   | `/veiculos`      | Cadastra um veículo                  |
 | PUT    | `/veiculos/{id}` | Substitui os dados de um veículo     |
 | DELETE | `/veiculos/{id}` | Exclui um veículo                    |
-
-> `GET /veiculos/{id}/ordens-servico` será documentado na etapa de Ordens de Serviço.
+| GET    | `/veiculos/{id}/ordens-servico` | Histórico de ordens de serviço do veículo |
 
 ---
 
@@ -235,3 +234,54 @@ registro que está sendo atualizado.
 | 400  | `DADOS_INVALIDOS`        | `id` não é um número inteiro positivo                               |
 | 404  | `RECURSO_NAO_ENCONTRADO` | Não existe veículo com o id informado                               |
 | 409  | `RECURSO_EM_USO`         | O veículo possui ordens de serviço: `"O veículo possui 2 ordem(ns) de serviço e não pode ser excluído."` |
+
+---
+
+### GET /veiculos/{id}/ordens-servico
+
+**Objetivo:** listar o histórico de ordens de serviço de um veículo (relacionamento Veículo 1:N Ordem de Serviço). Devolve um array simples, sem paginação, da mais recente para a mais antiga.
+
+**Parâmetros de rota / consulta:**
+
+| Nome     | Tipo    | Obrigatório | Finalidade                                                                                 |
+| -------- | ------- | ----------- | ------------------------------------------------------------------------------------------ |
+| `id`     | integer | sim (rota)  | Id do veículo cujo histórico será listado                                                  |
+| `status` | string  | não         | Um ou mais status separados por vírgula (`ABERTA,EM_ANDAMENTO`); valor fora do enum → 400   |
+
+**JSON enviado:** Não possui corpo.
+
+**Resposta de sucesso:** `200 OK` — array no formato resumido de ordens de serviço.
+
+```json
+[
+  {
+    "id": 18,
+    "status": "ABERTA",
+    "dataAbertura": "2026-09-04T12:00:00.000Z",
+    "dataConclusao": null,
+    "valorTotal": 509.4,
+    "veiculo": { "id": 1, "placa": "ABC1234", "modelo": "Argo Drive 1.0" },
+    "mecanico": null
+  },
+  {
+    "id": 1,
+    "status": "CONCLUIDA",
+    "dataAbertura": "2026-04-03T12:00:00.000Z",
+    "dataConclusao": "2026-04-05T12:00:00.000Z",
+    "valorTotal": 284.9,
+    "veiculo": { "id": 1, "placa": "ABC1234", "modelo": "Argo Drive 1.0" },
+    "mecanico": { "id": 1, "nome": "Adilson Moita" }
+  }
+]
+```
+
+Veículo que nunca passou pela oficina devolve `200` com `[]`.
+
+**Respostas de erro:**
+
+| HTTP | Código de erro           | Quando ocorre                                       |
+| ---- | ------------------------ | --------------------------------------------------- |
+| 400  | `DADOS_INVALIDOS`        | `id` não é um inteiro positivo, ou `status` inválido |
+| 404  | `RECURSO_NAO_ENCONTRADO` | Não existe veículo com o id informado               |
+
+O detalhe de cada ordem está em [`ordens-servico.md`](./ordens-servico.md).

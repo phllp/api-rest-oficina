@@ -31,6 +31,12 @@ GET {{baseUrl}}/mecanicos?especialidade=motor&ativo=true&limit=5
 ### Busca um mecanico pelo id (inclui totalOrdensServico)
 GET {{baseUrl}}/mecanicos/{{mecanicoId}}
 
+### Ordens de servico atribuidas ao mecanico
+GET {{baseUrl}}/mecanicos/{{mecanicoId}}/ordens-servico
+
+### Ordens do mecanico filtrando por status
+GET {{baseUrl}}/mecanicos/{{mecanicoId}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
+
 ### Cadastra um mecanico (ativo assume true quando omitido)
 POST {{baseUrl}}/mecanicos
 Content-Type: application/json

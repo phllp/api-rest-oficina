@@ -4,6 +4,7 @@ import { validate } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
 import { ClientesModule } from './modules/clientes/clientes.module.js';
 import { MecanicosModule } from './modules/mecanicos/mecanicos.module.js';
+import { OrdensServicoModule } from './modules/ordens-servico/ordens-servico.module.js';
 import { ServicosModule } from './modules/servicos/servicos.module.js';
 import { VeiculosModule } from './modules/veiculos/veiculos.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -22,6 +23,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     VeiculosModule,
     MecanicosModule,
     ServicosModule,
+    OrdensServicoModule,
   ],
 })
 export class AppModule {}

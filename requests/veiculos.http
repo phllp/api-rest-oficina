@@ -35,6 +35,12 @@ GET {{baseUrl}}/veiculos?marca=fiat&ano=2021&page=1&limit=5
 ### Busca um veiculo pelo id (inclui o cliente resumido)
 GET {{baseUrl}}/veiculos/{{veiculoId}}
 
+### Historico de ordens de servico do veiculo
+GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico
+
+### Historico do veiculo filtrando por status
+GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico?status=CONCLUIDA
+
 ### Cadastra um veiculo
 POST {{baseUrl}}/veiculos
 Content-Type: application/json

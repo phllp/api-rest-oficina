@@ -780,7 +780,7 @@ const ordensServico = [
     itens: [{ servicoIndice: 2, quantidade: 1 }],
   },
   {
-    veiculoIndice: 2,
+    veiculoIndice: 0,
     mecanicoIndice: 2,
     status: StatusOrdemServico.CONCLUIDA,
     diasAtrasAbertura: 51,
@@ -800,7 +800,7 @@ const ordensServico = [
     itens: [{ servicoIndice: 3, quantidade: 1 }],
   },
   {
-    veiculoIndice: 6,
+    veiculoIndice: 3,
     mecanicoIndice: 0,
     status: StatusOrdemServico.CONCLUIDA,
     diasAtrasAbertura: 39,
@@ -833,7 +833,7 @@ const ordensServico = [
     itens: [{ servicoIndice: 6, quantidade: 1 }],
   },
   {
-    veiculoIndice: 12,
+    veiculoIndice: 0,
     mecanicoIndice: null,
     status: StatusOrdemServico.ABERTA,
     diasAtrasAbertura: 24,
@@ -843,7 +843,7 @@ const ordensServico = [
     itens: [{ servicoIndice: 6, quantidade: 1 }],
   },
   {
-    veiculoIndice: 14,
+    veiculoIndice: 5,
     mecanicoIndice: 3,
     status: StatusOrdemServico.EM_ANDAMENTO,
     diasAtrasAbertura: 20,
@@ -934,6 +934,105 @@ const usuarioAdministrador = {
 };
 
 // ---------------------------------------------------------------------------
+// Conferencia das regras de negocio
+// ---------------------------------------------------------------------------
+
+/**
+ * Valida as specs antes de inserir, para o seed nao produzir dados que a
+ * propria API recusaria. As regras sao as mesmas aplicadas pelo modulo de
+ * ordens de servico (ver src/modules/ordens-servico/transicoes-status.ts).
+ */
+function conferirRegrasDeNegocio(): void {
+  const problemas: string[] = [];
+
+  const servicosInativos = new Set(
+    servicos.flatMap((servico, indice) => (servico.ativo ? [] : [indice])),
+  );
+  const mecanicosInativos = new Set(
+    mecanicos.flatMap((mecanico, indice) => (mecanico.ativo ? [] : [indice])),
+  );
+
+  ordensServico.forEach((ordem, posicao) => {
+    const rotulo = `ordem #${posicao + 1} (${ordem.status})`;
+    const exigeMecanico =
+      ordem.status === StatusOrdemServico.EM_ANDAMENTO ||
+      ordem.status === StatusOrdemServico.CONCLUIDA;
+
+    if (exigeMecanico && ordem.mecanicoIndice === null) {
+      problemas.push(`${rotulo}: status exige mecanico atribuido.`);
+    }
+
+    if (
+      ordem.mecanicoIndice !== null &&
+      mecanicosInativos.has(ordem.mecanicoIndice)
+    ) {
+      problemas.push(`${rotulo}: mecanico inativo nao deve receber ordens.`);
+    }
+
+    const concluida = ordem.status === StatusOrdemServico.CONCLUIDA;
+
+    if (concluida && ordem.diasAteConclusao === null) {
+      problemas.push(`${rotulo}: ordem concluida precisa de dataConclusao.`);
+    }
+
+    if (!concluida && ordem.diasAteConclusao !== null) {
+      problemas.push(
+        `${rotulo}: dataConclusao so vale para ordens concluidas.`,
+      );
+    }
+
+    if (
+      ordem.diasAteConclusao !== null &&
+      ordem.diasAteConclusao > ordem.diasAtrasAbertura
+    ) {
+      problemas.push(`${rotulo}: conclusao ficaria no futuro.`);
+    }
+
+    if (ordem.itens.length === 0) {
+      problemas.push(`${rotulo}: ordem sem itens.`);
+    }
+
+    const servicosDaOrdem = ordem.itens.map((item) => item.servicoIndice);
+
+    if (new Set(servicosDaOrdem).size !== servicosDaOrdem.length) {
+      problemas.push(`${rotulo}: servico repetido nos itens.`);
+    }
+
+    for (const servicoIndice of servicosDaOrdem) {
+      if (servicosInativos.has(servicoIndice)) {
+        problemas.push(
+          `${rotulo}: item usa servico inativo (indice ${servicoIndice}).`,
+        );
+      }
+    }
+  });
+
+  const cpfsRepetidos =
+    new Set(clientes.map((cliente) => cliente.cpfBase)).size !==
+    clientes.length;
+
+  if (cpfsRepetidos) {
+    problemas.push('clientes: existe CPF base repetido.');
+  }
+
+  const placasRepetidas =
+    new Set(veiculos.map((veiculo) => veiculo.placa)).size !== veiculos.length;
+
+  if (placasRepetidas) {
+    problemas.push('veiculos: existe placa repetida.');
+  }
+
+  if (problemas.length > 0) {
+    throw new Error(
+      [
+        'Os dados do seed violam regras de negocio:',
+        ...problemas.map((p) => `  - ${p}`),
+      ].join('\n'),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Execucao
 // ---------------------------------------------------------------------------
 
@@ -966,6 +1065,9 @@ async function limparBanco(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  console.log('Conferindo as regras de negocio dos dados...');
+  conferirRegrasDeNegocio();
+
   console.log('Limpando as tabelas...');
   await limparBanco();
 

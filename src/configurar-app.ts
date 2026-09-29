@@ -39,6 +39,10 @@ export function configurarApp(app: INestApplication): void {
     .addTag('veiculos', 'Cadastro de veiculos e vinculo com o proprietario')
     .addTag('mecanicos', 'Cadastro dos mecanicos que executam as ordens')
     .addTag('servicos', 'Catalogo de servicos oferecidos pela oficina')
+    .addTag(
+      'ordens-servico',
+      'Ordens de servico: itens, calculo de valores e ciclo de vida',
+    )
     .build();
 
   const documento = SwaggerModule.createDocument(app, configuracaoSwagger);

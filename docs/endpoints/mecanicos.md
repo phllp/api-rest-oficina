@@ -11,8 +11,7 @@ descrito em [`../erros.md`](../erros.md). Os exemplos usam os dados do seed
 | POST   | `/mecanicos`      | Cadastra um mecânico                      |
 | PUT    | `/mecanicos/{id}` | Substitui os dados de um mecânico         |
 | DELETE | `/mecanicos/{id}` | Exclui um mecânico                        |
-
-> `GET /mecanicos/{id}/ordens-servico` será documentado na etapa de Ordens de Serviço.
+| GET    | `/mecanicos/{id}/ordens-servico` | Ordens de serviço atribuídas ao mecânico |
 
 **Regra de negócio importante:** mecânicos com ordens de serviço no histórico
 **não podem ser excluídos**. Para tirá-los de circulação, altere `ativo` para
@@ -222,3 +221,45 @@ Como é substituição completa, **`ativo` é obrigatório aqui** (diferente do 
   "mensagem": "O mecânico possui 6 ordem(ns) de serviço vinculada(s) e não pode ser excluído. Para removê-lo das novas ordens, altere o campo ativo para false."
 }
 ```
+
+---
+
+### GET /mecanicos/{id}/ordens-servico
+
+**Objetivo:** listar as ordens de serviço atribuídas a um mecânico (relacionamento Mecânico 1:N Ordem de Serviço). Array simples, sem paginação, da mais recente para a mais antiga.
+
+**Parâmetros de rota / consulta:**
+
+| Nome     | Tipo    | Obrigatório | Finalidade                                                                               |
+| -------- | ------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `id`     | integer | sim (rota)  | Id do mecânico                                                                           |
+| `status` | string  | não         | Um ou mais status separados por vírgula (`ABERTA,EM_ANDAMENTO`); valor fora do enum → 400 |
+
+**JSON enviado:** Não possui corpo.
+
+**Resposta de sucesso:** `200 OK` — array no formato resumido de ordens de serviço.
+
+```json
+[
+  {
+    "id": 17,
+    "status": "EM_ANDAMENTO",
+    "dataAbertura": "2026-08-01T12:00:00.000Z",
+    "dataConclusao": null,
+    "valorTotal": 480,
+    "veiculo": { "id": 34, "placa": "GHI3345", "modelo": "WR-V EXL 1.5" },
+    "mecanico": { "id": 2, "nome": "Cleber Ramos" }
+  }
+]
+```
+
+Mecânico sem ordens devolve `200` com `[]` — é o caso do mecânico inativo do seed.
+
+**Respostas de erro:**
+
+| HTTP | Código de erro           | Quando ocorre                                       |
+| ---- | ------------------------ | --------------------------------------------------- |
+| 400  | `DADOS_INVALIDOS`        | `id` não é um inteiro positivo, ou `status` inválido |
+| 404  | `RECURSO_NAO_ENCONTRADO` | Não existe mecânico com o id informado              |
+
+O detalhe de cada ordem está em [`ordens-servico.md`](./ordens-servico.md).

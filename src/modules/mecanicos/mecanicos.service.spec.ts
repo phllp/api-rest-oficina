@@ -4,6 +4,7 @@ import {
   RecursoNaoEncontradoException,
 } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { AtualizarMecanicoDto } from './dto/atualizar-mecanico.dto.js';
 import type { CriarMecanicoDto } from './dto/criar-mecanico.dto.js';
 import { MecanicosService } from './mecanicos.service.js';
 
@@ -28,6 +29,12 @@ const DADOS_VALIDOS: CriarMecanicoDto = {
   nome: 'Adilson Moita',
   especialidade: 'Motor e injecao eletronica',
   telefone: '4733441001',
+  ativo: true,
+};
+
+/** No PUT o campo `ativo` e obrigatorio (substituicao completa). */
+const DADOS_PARA_ATUALIZAR: AtualizarMecanicoDto = {
+  ...DADOS_VALIDOS,
   ativo: true,
 };
 
@@ -169,7 +176,7 @@ describe('MecanicosService', () => {
       });
 
       const atualizado = await service.atualizar(1, {
-        ...DADOS_VALIDOS,
+        ...DADOS_PARA_ATUALIZAR,
         ativo: false,
       });
 
@@ -179,7 +186,7 @@ describe('MecanicosService', () => {
     it('lanca 404 quando o mecanico nao existe', async () => {
       prisma.mecanico.findUnique.mockResolvedValue(null);
 
-      await expect(service.atualizar(99, DADOS_VALIDOS)).rejects.toThrow(
+      await expect(service.atualizar(99, DADOS_PARA_ATUALIZAR)).rejects.toThrow(
         RecursoNaoEncontradoException,
       );
       expect(prisma.mecanico.update).not.toHaveBeenCalled();

@@ -31,6 +31,12 @@ GET {{baseUrl}}/clientes/{{clienteId}}
 ### Lista os veiculos de um cliente que possui veiculos
 GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/veiculos
 
+### Ordens de servico de todos os veiculos do cliente
+GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/ordens-servico
+
+### Ordens do cliente filtrando por status
+GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/ordens-servico?status=CONCLUIDA
+
 ### Lista os veiculos de um cliente sem veiculos (array vazio)
 GET {{baseUrl}}/clientes/1/veiculos
 

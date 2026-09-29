@@ -6,6 +6,7 @@ import {
   RegistroDuplicadoException,
 } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { AtualizarServicoDto } from './dto/atualizar-servico.dto.js';
 import type { CriarServicoDto } from './dto/criar-servico.dto.js';
 import type { FiltrosServicoQueryDto } from './dto/filtros-servico-query.dto.js';
 import { ServicosService } from './servicos.service.js';
@@ -45,6 +46,12 @@ const DADOS_VALIDOS: CriarServicoDto = {
   descricao: 'Troca de oleo e filtro',
   preco: 189.9,
   tempoEstimadoMin: 45,
+  ativo: true,
+};
+
+/** No PUT o campo `ativo` e obrigatorio (substituicao completa). */
+const DADOS_PARA_ATUALIZAR: AtualizarServicoDto = {
+  ...DADOS_VALIDOS,
   ativo: true,
 };
 
@@ -247,7 +254,7 @@ describe('ServicosService', () => {
       prisma.servico.findFirst.mockResolvedValue(null);
       prisma.servico.update.mockResolvedValue(SERVICO_SALVO);
 
-      await service.atualizar(1, DADOS_VALIDOS);
+      await service.atualizar(1, DADOS_PARA_ATUALIZAR);
 
       expect(prisma.servico.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -266,7 +273,9 @@ describe('ServicosService', () => {
       prisma.servico.findUnique.mockResolvedValue({ id: 1 });
       prisma.servico.findFirst.mockResolvedValue({ id: 2 });
 
-      await expect(service.atualizar(1, DADOS_VALIDOS)).rejects.toMatchObject({
+      await expect(
+        service.atualizar(1, DADOS_PARA_ATUALIZAR),
+      ).rejects.toMatchObject({
         mensagem: 'Já existe um serviço com esta descrição.',
       });
       expect(prisma.servico.update).not.toHaveBeenCalled();
@@ -275,7 +284,7 @@ describe('ServicosService', () => {
     it('lanca 404 quando o servico nao existe', async () => {
       prisma.servico.findUnique.mockResolvedValue(null);
 
-      await expect(service.atualizar(99, DADOS_VALIDOS)).rejects.toThrow(
+      await expect(service.atualizar(99, DADOS_PARA_ATUALIZAR)).rejects.toThrow(
         RecursoNaoEncontradoException,
       );
       expect(prisma.servico.update).not.toHaveBeenCalled();
