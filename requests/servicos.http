@@ -1,0 +1,154 @@
+### Recurso: Servicos (catalogo da oficina)
+# Arquivo para a extensao REST Client do VS Code.
+# Suba a API com `npm run start:dev` e o banco com `npm run db:up`.
+# Os ids e dados usados aqui seguem o seed (`npm run db:seed`).
+
+@baseUrl = http://localhost:3000
+@servicoId = 1
+@servicoSemUso = 10
+
+### Lista o catalogo (padrao: page=1, limit=10, ordenado por descricao)
+GET {{baseUrl}}/servicos
+
+### Lista com paginacao explicita
+GET {{baseUrl}}/servicos?page=1&limit=5
+
+### Filtra por descricao (parcial, sem diferenciar maiusculas)
+GET {{baseUrl}}/servicos?descricao=troca
+
+### Faixa de preco (limites inclusivos)
+GET {{baseUrl}}/servicos?preco_min=100&preco_max=500
+
+### Somente preco minimo
+GET {{baseUrl}}/servicos?preco_min=1000
+
+### Somente preco maximo
+GET {{baseUrl}}/servicos?preco_max=100
+
+### Faixa de preco ordenada por preco decrescente
+GET {{baseUrl}}/servicos?preco_min=100&preco_max=500&ordenar_por=preco&ordem=desc
+
+### Ordena por tempo estimado crescente
+GET {{baseUrl}}/servicos?ordenar_por=tempo_estimado&ordem=asc
+
+### Ordena por descricao decrescente
+GET {{baseUrl}}/servicos?ordenar_por=descricao&ordem=desc
+
+### Somente servicos ativos
+GET {{baseUrl}}/servicos?ativo=true
+
+### Somente servicos inativos (o seed tem um: Polimento tecnico e cristalizacao)
+GET {{baseUrl}}/servicos?ativo=false
+
+### Busca um servico pelo id
+GET {{baseUrl}}/servicos/{{servicoId}}
+
+### Cadastra um servico (ativo assume true quando omitido)
+POST {{baseUrl}}/servicos
+Content-Type: application/json
+
+{
+  "descricao": "Troca de amortecedores dianteiros",
+  "preco": 1290.9,
+  "tempoEstimadoMin": 240
+}
+
+### Cadastra um servico ja inativo
+POST {{baseUrl}}/servicos
+Content-Type: application/json
+
+{
+  "descricao": "Lavagem a seco",
+  "preco": 80,
+  "tempoEstimadoMin": 60,
+  "ativo": false
+}
+
+### Substitui os dados de um servico (PUT exige todos os campos, inclusive ativo)
+# Reajustar o preco aqui NAO altera ordens de servico existentes:
+# cada item guarda o precoUnitario da epoca.
+PUT {{baseUrl}}/servicos/{{servicoId}}
+Content-Type: application/json
+
+{
+  "descricao": "Troca de oleo e filtro",
+  "preco": 209.9,
+  "tempoEstimadoMin": 45,
+  "ativo": true
+}
+
+### Desativa um servico sem excluir (uso recomendado para quem tem historico)
+PUT {{baseUrl}}/servicos/{{servicoId}}
+Content-Type: application/json
+
+{
+  "descricao": "Troca de oleo e filtro",
+  "preco": 189.9,
+  "tempoEstimadoMin": 45,
+  "ativo": false
+}
+
+### Exclui um servico que nunca foi lancado em uma ordem
+DELETE {{baseUrl}}/servicos/{{servicoSemUso}}
+
+# ---------------------------------------------------------------------------
+# Casos de erro
+# ---------------------------------------------------------------------------
+
+### 400 - varios campos invalidos (veja o array "detalhes")
+POST {{baseUrl}}/servicos
+Content-Type: application/json
+
+{
+  "descricao": "ab",
+  "preco": 0,
+  "tempoEstimadoMin": 1
+}
+
+### 400 - preco com mais de 2 casas decimais
+POST {{baseUrl}}/servicos
+Content-Type: application/json
+
+{
+  "descricao": "Servico com preco quebrado",
+  "preco": 189.999,
+  "tempoEstimadoMin": 45
+}
+
+### 400 - preco_min maior que preco_max
+GET {{baseUrl}}/servicos?preco_min=500&preco_max=100
+
+### 400 - ordenar_por com valor nao suportado
+GET {{baseUrl}}/servicos?ordenar_por=valor
+
+### 400 - ordem invalida
+GET {{baseUrl}}/servicos?ordem=crescente
+
+### 400 - filtro ativo com valor invalido (somente "true" ou "false")
+GET {{baseUrl}}/servicos?ativo=1
+
+### 400 - ativo omitido no PUT
+PUT {{baseUrl}}/servicos/{{servicoId}}
+Content-Type: application/json
+
+{
+  "descricao": "Troca de oleo e filtro",
+  "preco": 189.9,
+  "tempoEstimadoMin": 45
+}
+
+### 404 - servico inexistente
+GET {{baseUrl}}/servicos/9999
+
+### 409 - descricao ja cadastrada (mesma do servico 1 do seed, em outra caixa)
+POST {{baseUrl}}/servicos
+Content-Type: application/json
+
+{
+  "descricao": "TROCA DE OLEO E FILTRO",
+  "preco": 199.9,
+  "tempoEstimadoMin": 45
+}
+
+### 409 - exclusao de servico usado em ordens de servico (orienta desativar)
+DELETE {{baseUrl}}/servicos/{{servicoId}}

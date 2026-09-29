@@ -1,0 +1,115 @@
+### Recurso: Mecanicos
+# Arquivo para a extensao REST Client do VS Code.
+# Suba a API com `npm run start:dev` e o banco com `npm run db:up`.
+# Os ids e dados usados aqui seguem o seed (`npm run db:seed`).
+
+@baseUrl = http://localhost:3000
+@mecanicoId = 1
+@mecanicoInativo = 5
+
+### Lista os mecanicos (padrao: page=1, limit=10)
+GET {{baseUrl}}/mecanicos
+
+### Lista com paginacao explicita
+GET {{baseUrl}}/mecanicos?page=1&limit=3
+
+### Filtra por nome (parcial, sem diferenciar maiusculas)
+GET {{baseUrl}}/mecanicos?nome=adilson
+
+### Filtra por especialidade (parcial, sem diferenciar maiusculas)
+GET {{baseUrl}}/mecanicos?especialidade=freios
+
+### Somente os mecanicos ativos
+GET {{baseUrl}}/mecanicos?ativo=true
+
+### Somente os mecanicos inativos (o seed tem um: Sergio Bonfim)
+GET {{baseUrl}}/mecanicos?ativo=false
+
+### Combina filtros
+GET {{baseUrl}}/mecanicos?especialidade=motor&ativo=true&limit=5
+
+### Busca um mecanico pelo id (inclui totalOrdensServico)
+GET {{baseUrl}}/mecanicos/{{mecanicoId}}
+
+### Cadastra um mecanico (ativo assume true quando omitido)
+POST {{baseUrl}}/mecanicos
+Content-Type: application/json
+
+{
+  "nome": "Rafaela Duarte",
+  "especialidade": "Ar-condicionado automotivo",
+  "telefone": "(47) 3344-1006"
+}
+
+### Cadastra um mecanico ja inativo
+POST {{baseUrl}}/mecanicos
+Content-Type: application/json
+
+{
+  "nome": "Joao Aposentado",
+  "especialidade": "Motor",
+  "telefone": "4733441007",
+  "ativo": false
+}
+
+### Substitui os dados de um mecanico (PUT exige todos os campos, inclusive ativo)
+PUT {{baseUrl}}/mecanicos/{{mecanicoId}}
+Content-Type: application/json
+
+{
+  "nome": "Adilson Moita",
+  "especialidade": "Motor, injecao eletronica e cambio",
+  "telefone": "4733441001",
+  "ativo": true
+}
+
+### Desativa um mecanico sem excluir (uso recomendado para quem tem historico)
+PUT {{baseUrl}}/mecanicos/{{mecanicoId}}
+Content-Type: application/json
+
+{
+  "nome": "Adilson Moita",
+  "especialidade": "Motor e injecao eletronica",
+  "telefone": "4733441001",
+  "ativo": false
+}
+
+### Exclui um mecanico sem ordens de servico (o inativo do seed nao tem nenhuma)
+DELETE {{baseUrl}}/mecanicos/{{mecanicoInativo}}
+
+# ---------------------------------------------------------------------------
+# Casos de erro
+# ---------------------------------------------------------------------------
+
+### 400 - varios campos invalidos (veja o array "detalhes")
+POST {{baseUrl}}/mecanicos
+Content-Type: application/json
+
+{
+  "nome": "A",
+  "especialidade": "X",
+  "telefone": "123",
+  "ativo": "talvez"
+}
+
+### 400 - ativo omitido no PUT (obrigatorio na substituicao completa)
+PUT {{baseUrl}}/mecanicos/{{mecanicoId}}
+Content-Type: application/json
+
+{
+  "nome": "Adilson Moita",
+  "especialidade": "Motor e injecao eletronica",
+  "telefone": "4733441001"
+}
+
+### 400 - filtro ativo com valor invalido (somente "true" ou "false")
+GET {{baseUrl}}/mecanicos?ativo=abc
+
+### 400 - id nao inteiro
+GET {{baseUrl}}/mecanicos/abc
+
+### 404 - mecanico inexistente
+GET {{baseUrl}}/mecanicos/9999
+
+### 409 - exclusao de mecanico com ordens de servico (orienta desativar)
+DELETE {{baseUrl}}/mecanicos/{{mecanicoId}}

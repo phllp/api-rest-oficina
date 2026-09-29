@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { validate } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
 import { ClientesModule } from './modules/clientes/clientes.module.js';
+import { MecanicosModule } from './modules/mecanicos/mecanicos.module.js';
+import { ServicosModule } from './modules/servicos/servicos.module.js';
 import { VeiculosModule } from './modules/veiculos/veiculos.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -18,6 +20,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
     HealthModule,
     ClientesModule,
     VeiculosModule,
+    MecanicosModule,
+    ServicosModule,
   ],
 })
 export class AppModule {}
