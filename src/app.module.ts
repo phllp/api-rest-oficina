@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validate } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
 import { ClientesModule } from './modules/clientes/clientes.module.js';
 import { MecanicosModule } from './modules/mecanicos/mecanicos.module.js';
 import { OrdensServicoModule } from './modules/ordens-servico/ordens-servico.module.js';
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
       validate,
     }),
     PrismaModule,
+    AuthModule,
     HealthModule,
     ClientesModule,
     VeiculosModule,

@@ -14,6 +14,7 @@ primeira entrega contém a configuração do ambiente e a base da aplicação
 - **class-validator** / **class-transformer** para validação de entrada
 - **@nestjs/swagger** para a documentação interativa
 - **@nestjs/config** para as variáveis de ambiente (validadas na inicialização)
+- **@nestjs/jwt** + **bcryptjs** para autenticação JWT
 - ESLint + Prettier
 
 ## Pré-requisitos
@@ -60,6 +61,31 @@ migration versionada:
 npm run prisma:migrate -- --name criar_tabela_clientes
 ```
 
+## Autenticação
+
+A API é protegida por JWT: **todas as rotas exigem token**, exceto
+`POST /auth/login` e `GET /health`.
+
+```bash
+# 1. obtenha o token (credenciais criadas pelo seed)
+curl -s -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@oficina.com","senha":"123456"}'
+# { "token": "eyJhbGciOi...", "tipo": "Bearer", "expiraEm": 3600 }
+
+# 2. use o token nas demais chamadas
+curl -s http://localhost:3000/clientes \
+  -H "Authorization: Bearer eyJhbGciOi..."
+```
+
+No Swagger: execute `POST /auth/login`, copie o `token`, clique em **Authorize**
+no topo da página e cole. O fluxo completo, o formato do payload e as decisões
+de segurança estão em [`docs/autenticacao.md`](./docs/autenticacao.md).
+
+| Usuário do seed     | Senha    |
+| ------------------- | -------- |
+| `admin@oficina.com` | `123456` |
+
 ## Documentação (Swagger)
 
 Com a aplicação no ar, a documentação interativa fica em:
@@ -67,8 +93,8 @@ Com a aplicação no ar, a documentação interativa fica em:
 - **http://localhost:3000/docs** — interface do Swagger UI
 - **http://localhost:3000/docs-json** — especificação OpenAPI em JSON
 
-O esquema de autenticação Bearer (JWT) já está registrado e será usado pelas
-rotas protegidas na etapa de autenticação.
+O botão **Authorize** guarda o token entre recarregamentos da página
+(`persistAuthorization`), e os endpoints protegidos exibem o cadeado.
 
 ## Health check
 
@@ -100,6 +126,7 @@ resposta é `503` com o padrão de erro da API:
 | `npm run build`           | compila o projeto                                |
 | `npm run lint`            | verifica o código com ESLint (`lint:fix` corrige)|
 | `npm run format`          | formata o código com Prettier                    |
+| `npm run typecheck`       | checa os tipos de todo o projeto, specs inclusos |
 | `npm test`                | testes unitários (vitest)                        |
 | `npm run test:e2e`        | testes de ponta a ponta (exige o banco no ar)    |
 | `npm run db:up`           | sobe o PostgreSQL                                |
@@ -117,7 +144,8 @@ alguma estiver faltando ou inválida.
 | -------------- | ----------- | -------------------------------------------------- |
 | `DATABASE_URL` | sim         | conexão do Prisma com o PostgreSQL                 |
 | `PORT`         | não (3000)  | porta HTTP da API                                  |
-| `JWT_SECRET`   | sim         | segredo dos tokens JWT (etapa de autenticação)     |
+| `JWT_SECRET`   | sim         | segredo de assinatura dos tokens JWT (mín. 32 caracteres) |
+| `JWT_EXPIRES_IN` | não (`1h`) | validade do token (`3600`, `30m`, `1h`, `7d`)    |
 | `DB_PORT`      | não (5432)  | porta que o container do Postgres expõe no host    |
 
 ## Estrutura do projeto
@@ -128,7 +156,7 @@ src/
   config/      # validação das variáveis de ambiente
   prisma/      # PrismaModule (global) e PrismaService
   health/      # GET /health
-  modules/     # recursos de negócio (próximas etapas)
+  modules/     # auth, clientes, veiculos, mecanicos, servicos, ordens-servico
 prisma/
   schema.prisma
 ```
@@ -139,6 +167,9 @@ As convenções de código, rotas, erros e documentação estão em
 ## Roadmap
 
 - [x] **Etapa 1** — ambiente, base do projeto, health check e Swagger
-- [ ] **Etapa 2** — recursos de negócio (clientes, veículos, mecânicos, serviços, ordens de serviço)
-- [ ] **Etapa 3** — padronização de erros e paginação
-- [ ] **Etapa 4** — autenticação com JWT
+- [x] **Etapa 2** — modelo de dados, migration inicial e seed
+- [x] **Etapa 3** — padronização de erros, paginação e validação
+- [x] **Etapa 4** — clientes e veículos
+- [x] **Etapa 5** — mecânicos e serviços
+- [x] **Etapa 6** — ordens de serviço, itens e máquina de estados
+- [x] **Etapa 7** — autenticação JWT e proteção da API

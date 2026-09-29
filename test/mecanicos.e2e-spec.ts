@@ -1,8 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
-import { criarAppDeTeste, limparDados } from './util-app-teste.js';
+import {
+  criarAppDeTeste,
+  limparDados,
+  type ClienteHttpAutenticado,
+} from './util-app-teste.js';
 
 interface CorpoErro {
   status: number;
@@ -39,11 +42,13 @@ function novoMecanico(extras: Record<string, unknown> = {}) {
 
 describe('Mecanicos (e2e)', () => {
   let app: INestApplication<App>;
+  let api: ClienteHttpAutenticado;
   let prisma: PrismaService;
 
   beforeAll(async () => {
     const criado = await criarAppDeTeste();
     app = criado.app as INestApplication<App>;
+    api = criado.api;
     prisma = criado.prisma;
   });
 
@@ -58,7 +63,7 @@ describe('Mecanicos (e2e)', () => {
 
   describe('POST /mecanicos', () => {
     it('cadastra com ativo true por padrao e normaliza o telefone', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/mecanicos')
         .send(novoMecanico())
         .expect(201);
@@ -76,7 +81,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('aceita ativo false explicito', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/mecanicos')
         .send(novoMecanico({ ativo: false }))
         .expect(201);
@@ -85,7 +90,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('responde 400 com detalhes por campo invalido', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/mecanicos')
         .send({
           nome: 'A',
@@ -134,9 +139,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('lista paginado e ordenado por nome', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos')
-        .expect(200);
+      const resposta = await api.get('/mecanicos').expect(200);
 
       const corpo = resposta.body as ListaMecanicos;
 
@@ -149,9 +152,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('respeita page e limit', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos?page=2&limit=2')
-        .expect(200);
+      const resposta = await api.get('/mecanicos?page=2&limit=2').expect(200);
 
       const corpo = resposta.body as ListaMecanicos;
 
@@ -160,9 +161,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('pagina alem do fim devolve 200 com data vazio', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos?page=10&limit=10')
-        .expect(200);
+      const resposta = await api.get('/mecanicos?page=10&limit=10').expect(200);
 
       expect(resposta.body).toEqual({
         page: 10,
@@ -173,9 +172,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('filtra por nome parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos?nome=CLEBER')
-        .expect(200);
+      const resposta = await api.get('/mecanicos?nome=CLEBER').expect(200);
 
       const corpo = resposta.body as ListaMecanicos;
 
@@ -184,7 +181,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('filtra por especialidade parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/mecanicos?especialidade=FREIOS')
         .expect(200);
 
@@ -192,9 +189,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('filtra somente os ativos com ativo=true', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos?ativo=true')
-        .expect(200);
+      const resposta = await api.get('/mecanicos?ativo=true').expect(200);
 
       const corpo = resposta.body as ListaMecanicos;
 
@@ -203,9 +198,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('filtra somente os inativos com ativo=false', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos?ativo=false')
-        .expect(200);
+      const resposta = await api.get('/mecanicos?ativo=false').expect(200);
 
       const corpo = resposta.body as ListaMecanicos;
 
@@ -219,9 +212,7 @@ describe('Mecanicos (e2e)', () => {
     it.each(['abc', '1', 'TRUE', 'sim'])(
       'responde 400 para ativo=%s',
       async (valor) => {
-        const resposta = await request(app.getHttpServer())
-          .get(`/mecanicos?ativo=${valor}`)
-          .expect(400);
+        const resposta = await api.get(`/mecanicos?ativo=${valor}`).expect(400);
 
         const corpo = resposta.body as CorpoErro;
 
@@ -272,9 +263,7 @@ describe('Mecanicos (e2e)', () => {
         ],
       });
 
-      const resposta = await request(app.getHttpServer())
-        .get(`/mecanicos/${mecanico.id}`)
-        .expect(200);
+      const resposta = await api.get(`/mecanicos/${mecanico.id}`).expect(200);
 
       expect(resposta.body).toMatchObject({
         id: mecanico.id,
@@ -289,17 +278,13 @@ describe('Mecanicos (e2e)', () => {
         data: { nome: 'Novo', especialidade: 'Geral', telefone: '4733441009' },
       });
 
-      const resposta = await request(app.getHttpServer())
-        .get(`/mecanicos/${mecanico.id}`)
-        .expect(200);
+      const resposta = await api.get(`/mecanicos/${mecanico.id}`).expect(200);
 
       expect(resposta.body).toMatchObject({ totalOrdensServico: 0 });
     });
 
     it('responde 404 quando o mecanico nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos/9999')
-        .expect(404);
+      const resposta = await api.get('/mecanicos/9999').expect(404);
 
       expect(resposta.body).toEqual({
         status: 404,
@@ -309,9 +294,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('responde 400 para id invalido', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/mecanicos/abc')
-        .expect(400);
+      const resposta = await api.get('/mecanicos/abc').expect(400);
 
       expect((resposta.body as CorpoErro).erro).toBe('DADOS_INVALIDOS');
     });
@@ -327,7 +310,7 @@ describe('Mecanicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/mecanicos/${mecanico.id}`)
         .send({
           nome: 'Adilson Moita Junior',
@@ -354,7 +337,7 @@ describe('Mecanicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/mecanicos/${mecanico.id}`)
         .send(novoMecanico())
         .expect(400);
@@ -365,7 +348,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('responde 404 quando o mecanico nao existe', async () => {
-      await request(app.getHttpServer())
+      await api
         .put('/mecanicos/9999')
         .send(novoMecanico({ ativo: true }))
         .expect(404);
@@ -383,7 +366,7 @@ describe('Mecanicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .delete(`/mecanicos/${mecanico.id}`)
         .expect(204);
 
@@ -426,7 +409,7 @@ describe('Mecanicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .delete(`/mecanicos/${mecanico.id}`)
         .expect(409);
 
@@ -440,7 +423,7 @@ describe('Mecanicos (e2e)', () => {
     });
 
     it('responde 404 quando o mecanico nao existe', async () => {
-      await request(app.getHttpServer()).delete('/mecanicos/9999').expect(404);
+      await api.delete('/mecanicos/9999').expect(404);
     });
   });
 });

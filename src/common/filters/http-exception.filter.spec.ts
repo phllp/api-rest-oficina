@@ -27,7 +27,11 @@ interface CorpoCapturado {
 
 /** Monta um ArgumentsHost minimo e captura o que o filtro respondeu. */
 function criarContexto(metodo = 'GET', url = '/clientes') {
-  const capturado: { status?: number; corpo?: CorpoCapturado } = {};
+  const capturado: {
+    status?: number;
+    corpo?: CorpoCapturado;
+    headers: Record<string, string>;
+  } = { headers: {} };
 
   const resposta = {
     status(codigo: number) {
@@ -36,6 +40,10 @@ function criarContexto(metodo = 'GET', url = '/clientes') {
     },
     json(corpo: CorpoCapturado) {
       capturado.corpo = corpo;
+      return this;
+    },
+    setHeader(nome: string, valor: string) {
+      capturado.headers[nome] = valor;
       return this;
     },
   };
@@ -288,6 +296,30 @@ describe('HttpExceptionFilter', () => {
       erro: 'NAO_AUTENTICADO',
       mensagem: 'Autenticação necessária para acessar este recurso.',
     });
+  });
+
+  it('acrescenta WWW-Authenticate: Bearer em toda resposta 401', () => {
+    const { host, capturado } = criarContexto('GET', '/clientes');
+
+    filtro.catch(
+      new ApiException(
+        401,
+        'TOKEN_INVALIDO',
+        'Token expirado. Faça login novamente.',
+      ),
+      host,
+    );
+
+    expect(capturado.status).toBe(401);
+    expect(capturado.headers['WWW-Authenticate']).toBe('Bearer');
+  });
+
+  it('nao envia WWW-Authenticate em respostas que nao sao 401', () => {
+    const { host, capturado } = criarContexto('GET', '/clientes');
+
+    filtro.catch(new RecursoNaoEncontradoException('Cliente', 1), host);
+
+    expect(capturado.headers).toEqual({});
   });
 
   it('mapeia HttpException generica pelo status', () => {

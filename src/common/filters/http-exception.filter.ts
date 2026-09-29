@@ -25,6 +25,12 @@ interface CorpoErro {
   detalhes?: DetalheErroDto[];
 }
 
+/**
+ * Todo 401 acompanha o desafio de autenticacao exigido pelo HTTP
+ * (RFC 9110, secao 11.6.1): o cliente precisa saber *como* se autenticar.
+ */
+const DESAFIO_AUTENTICACAO = 'Bearer';
+
 /** Rotas inexistentes chegam do Nest/Express como "Cannot GET /xyz". */
 const MENSAGEM_ROTA_INEXISTENTE = /^Cannot\s+[A-Z]+\s/;
 
@@ -133,6 +139,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const resposta = contexto.getResponse<Response>();
 
     const corpo = this.montarCorpo(excecao, requisicao);
+
+    if (corpo.status === HttpStatus.UNAUTHORIZED) {
+      resposta.setHeader('WWW-Authenticate', DESAFIO_AUTENTICACAO);
+    }
 
     if (corpo.status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(

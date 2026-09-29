@@ -7,38 +7,67 @@
 @mecanicoId = 1
 @mecanicoInativo = 5
 
+# ---------------------------------------------------------------------------
+# AUTENTICACAO: execute a requisicao "Login" abaixo UMA VEZ antes das outras.
+# Ela e nomeada (`# @name login`), e as demais requisicoes deste arquivo
+# reaproveitam o token com {{login.response.body.token}}.
+# Credenciais do seed: admin@oficina.com / 123456
+# ---------------------------------------------------------------------------
+
+### Login (execute esta primeiro)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456"
+}
+
+
 ### Lista os mecanicos (padrao: page=1, limit=10)
 GET {{baseUrl}}/mecanicos
+Authorization: Bearer {{login.response.body.token}}
 
 ### Lista com paginacao explicita
 GET {{baseUrl}}/mecanicos?page=1&limit=3
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por nome (parcial, sem diferenciar maiusculas)
 GET {{baseUrl}}/mecanicos?nome=adilson
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por especialidade (parcial, sem diferenciar maiusculas)
 GET {{baseUrl}}/mecanicos?especialidade=freios
+Authorization: Bearer {{login.response.body.token}}
 
 ### Somente os mecanicos ativos
 GET {{baseUrl}}/mecanicos?ativo=true
+Authorization: Bearer {{login.response.body.token}}
 
 ### Somente os mecanicos inativos (o seed tem um: Sergio Bonfim)
 GET {{baseUrl}}/mecanicos?ativo=false
+Authorization: Bearer {{login.response.body.token}}
 
 ### Combina filtros
 GET {{baseUrl}}/mecanicos?especialidade=motor&ativo=true&limit=5
+Authorization: Bearer {{login.response.body.token}}
 
 ### Busca um mecanico pelo id (inclui totalOrdensServico)
 GET {{baseUrl}}/mecanicos/{{mecanicoId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de servico atribuidas ao mecanico
 GET {{baseUrl}}/mecanicos/{{mecanicoId}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens do mecanico filtrando por status
 GET {{baseUrl}}/mecanicos/{{mecanicoId}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
+Authorization: Bearer {{login.response.body.token}}
 
 ### Cadastra um mecanico (ativo assume true quando omitido)
 POST {{baseUrl}}/mecanicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -49,6 +78,7 @@ Content-Type: application/json
 
 ### Cadastra um mecanico ja inativo
 POST {{baseUrl}}/mecanicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -60,6 +90,7 @@ Content-Type: application/json
 
 ### Substitui os dados de um mecanico (PUT exige todos os campos, inclusive ativo)
 PUT {{baseUrl}}/mecanicos/{{mecanicoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -71,6 +102,7 @@ Content-Type: application/json
 
 ### Desativa um mecanico sem excluir (uso recomendado para quem tem historico)
 PUT {{baseUrl}}/mecanicos/{{mecanicoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -82,6 +114,7 @@ Content-Type: application/json
 
 ### Exclui um mecanico sem ordens de servico (o inativo do seed nao tem nenhuma)
 DELETE {{baseUrl}}/mecanicos/{{mecanicoInativo}}
+Authorization: Bearer {{login.response.body.token}}
 
 # ---------------------------------------------------------------------------
 # Casos de erro
@@ -89,6 +122,7 @@ DELETE {{baseUrl}}/mecanicos/{{mecanicoInativo}}
 
 ### 400 - varios campos invalidos (veja o array "detalhes")
 POST {{baseUrl}}/mecanicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -100,6 +134,7 @@ Content-Type: application/json
 
 ### 400 - ativo omitido no PUT (obrigatorio na substituicao completa)
 PUT {{baseUrl}}/mecanicos/{{mecanicoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -110,12 +145,16 @@ Content-Type: application/json
 
 ### 400 - filtro ativo com valor invalido (somente "true" ou "false")
 GET {{baseUrl}}/mecanicos?ativo=abc
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - id nao inteiro
 GET {{baseUrl}}/mecanicos/abc
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - mecanico inexistente
 GET {{baseUrl}}/mecanicos/9999
+Authorization: Bearer {{login.response.body.token}}
 
 ### 409 - exclusao de mecanico com ordens de servico (orienta desativar)
 DELETE {{baseUrl}}/mecanicos/{{mecanicoId}}
+Authorization: Bearer {{login.response.body.token}}

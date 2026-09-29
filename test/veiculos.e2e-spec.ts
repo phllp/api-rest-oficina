@@ -1,9 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import { StatusOrdemServico } from '@prisma/client';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
-import { criarAppDeTeste, limparDados } from './util-app-teste.js';
+import {
+  criarAppDeTeste,
+  limparDados,
+  type ClienteHttpAutenticado,
+} from './util-app-teste.js';
 
 interface CorpoErro {
   status: number;
@@ -35,6 +38,7 @@ const ANO_MAXIMO = new Date().getFullYear() + 1;
 
 describe('Veiculos (e2e)', () => {
   let app: INestApplication<App>;
+  let api: ClienteHttpAutenticado;
   let prisma: PrismaService;
   let clienteId: number;
   let outroClienteId: number;
@@ -42,6 +46,7 @@ describe('Veiculos (e2e)', () => {
   beforeAll(async () => {
     const criado = await criarAppDeTeste();
     app = criado.app as INestApplication<App>;
+    api = criado.api;
     prisma = criado.prisma;
   });
 
@@ -89,7 +94,7 @@ describe('Veiculos (e2e)', () => {
 
   describe('POST /veiculos', () => {
     it('cadastra e responde 201 com o veiculo criado', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send(novoVeiculo())
         .expect(201);
@@ -109,7 +114,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('normaliza a placa enviada em minusculas e com hifen', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send(novoVeiculo({ placa: 'abc-1d23' }))
         .expect(201);
@@ -118,7 +123,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('aceita veiculo sem cor', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send({
           placa: 'XYZ9876',
@@ -133,7 +138,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 400 com detalhes por campo invalido', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send({
           placa: 'ABC-123',
@@ -157,7 +162,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it(`rejeita ano acima de ${ANO_MAXIMO}`, async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send(novoVeiculo({ ano: ANO_MAXIMO + 1 }))
         .expect(400);
@@ -168,7 +173,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 404 quando o clienteId nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send(novoVeiculo({ clienteId: 9999 }))
         .expect(404);
@@ -181,12 +186,9 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 409 quando a placa ja existe', async () => {
-      await request(app.getHttpServer())
-        .post('/veiculos')
-        .send(novoVeiculo())
-        .expect(201);
+      await api.post('/veiculos').send(novoVeiculo()).expect(201);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/veiculos')
         .send(novoVeiculo({ clienteId: outroClienteId }))
         .expect(409);
@@ -232,9 +234,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('lista paginado e ordenado por placa', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos')
-        .expect(200);
+      const resposta = await api.get('/veiculos').expect(200);
 
       const corpo = resposta.body as ListaVeiculos;
 
@@ -247,9 +247,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('respeita page e limit', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?page=2&limit=2')
-        .expect(200);
+      const resposta = await api.get('/veiculos?page=2&limit=2').expect(200);
 
       const corpo = resposta.body as ListaVeiculos;
 
@@ -258,9 +256,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('pagina alem do fim devolve 200 com data vazio', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?page=50&limit=10')
-        .expect(200);
+      const resposta = await api.get('/veiculos?page=50&limit=10').expect(200);
 
       expect(resposta.body).toEqual({
         page: 50,
@@ -271,9 +267,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('filtra por placa parcial, normalizando o valor informado', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?placa=abc')
-        .expect(200);
+      const resposta = await api.get('/veiculos?placa=abc').expect(200);
 
       const corpo = resposta.body as ListaVeiculos;
 
@@ -282,17 +276,13 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('filtra por marca parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?marca=FIAT')
-        .expect(200);
+      const resposta = await api.get('/veiculos?marca=FIAT').expect(200);
 
       expect((resposta.body as ListaVeiculos).total).toBe(1);
     });
 
     it('filtra por modelo parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?modelo=onix')
-        .expect(200);
+      const resposta = await api.get('/veiculos?modelo=onix').expect(200);
 
       const corpo = resposta.body as ListaVeiculos;
 
@@ -301,9 +291,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('filtra por ano exato', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?ano=2016')
-        .expect(200);
+      const resposta = await api.get('/veiculos?ano=2016').expect(200);
 
       const corpo = resposta.body as ListaVeiculos;
 
@@ -312,7 +300,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('filtra por cliente_id', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/veiculos?cliente_id=${clienteId}`)
         .expect(200);
 
@@ -323,7 +311,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('combina filtros', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/veiculos?cliente_id=${clienteId}&marca=chevrolet`)
         .expect(200);
 
@@ -334,9 +322,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 400 para cliente_id invalido', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos?cliente_id=abc')
-        .expect(400);
+      const resposta = await api.get('/veiculos?cliente_id=abc').expect(400);
 
       expect(
         ((resposta.body as CorpoErro).detalhes ?? []).map((d) => d.campo),
@@ -357,9 +343,7 @@ describe('Veiculos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
-        .get(`/veiculos/${veiculo.id}`)
-        .expect(200);
+      const resposta = await api.get(`/veiculos/${veiculo.id}`).expect(200);
 
       expect(resposta.body).toMatchObject({
         id: veiculo.id,
@@ -377,9 +361,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 404 quando o veiculo nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos/9999')
-        .expect(404);
+      const resposta = await api.get('/veiculos/9999').expect(404);
 
       expect(resposta.body).toEqual({
         status: 404,
@@ -389,9 +371,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 400 para id invalido', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/veiculos/-1')
-        .expect(400);
+      const resposta = await api.get('/veiculos/-1').expect(400);
 
       expect((resposta.body as CorpoErro).erro).toBe('DADOS_INVALIDOS');
     });
@@ -403,7 +383,7 @@ describe('Veiculos (e2e)', () => {
         data: novoVeiculo() as never,
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/veiculos/${veiculo.id}`)
         .send(
           novoVeiculo({
@@ -429,7 +409,7 @@ describe('Veiculos (e2e)', () => {
         data: novoVeiculo() as never,
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/veiculos/${veiculo.id}`)
         .send(novoVeiculo({ clienteId: outroClienteId }))
         .expect(200);
@@ -442,7 +422,7 @@ describe('Veiculos (e2e)', () => {
         data: novoVeiculo() as never,
       });
 
-      await request(app.getHttpServer())
+      await api
         .put(`/veiculos/${veiculo.id}`)
         .send(novoVeiculo({ cor: 'Preto' }))
         .expect(200);
@@ -456,7 +436,7 @@ describe('Veiculos (e2e)', () => {
         data: novoVeiculo({ placa: 'XYZ9876' }) as never,
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/veiculos/${primeiro.id}`)
         .send(novoVeiculo({ placa: 'XYZ9876' }))
         .expect(409);
@@ -467,10 +447,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 404 quando o veiculo nao existe', async () => {
-      await request(app.getHttpServer())
-        .put('/veiculos/9999')
-        .send(novoVeiculo())
-        .expect(404);
+      await api.put('/veiculos/9999').send(novoVeiculo()).expect(404);
     });
 
     it('responde 404 quando o novo clienteId nao existe', async () => {
@@ -478,7 +455,7 @@ describe('Veiculos (e2e)', () => {
         data: novoVeiculo() as never,
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/veiculos/${veiculo.id}`)
         .send(novoVeiculo({ clienteId: 9999 }))
         .expect(404);
@@ -495,9 +472,7 @@ describe('Veiculos (e2e)', () => {
         data: novoVeiculo() as never,
       });
 
-      const resposta = await request(app.getHttpServer())
-        .delete(`/veiculos/${veiculo.id}`)
-        .expect(204);
+      const resposta = await api.delete(`/veiculos/${veiculo.id}`).expect(204);
 
       expect(resposta.text).toBe('');
       await expect(
@@ -524,9 +499,7 @@ describe('Veiculos (e2e)', () => {
         ],
       });
 
-      const resposta = await request(app.getHttpServer())
-        .delete(`/veiculos/${veiculo.id}`)
-        .expect(409);
+      const resposta = await api.delete(`/veiculos/${veiculo.id}`).expect(409);
 
       expect(resposta.body).toEqual({
         status: 409,
@@ -537,7 +510,7 @@ describe('Veiculos (e2e)', () => {
     });
 
     it('responde 404 quando o veiculo nao existe', async () => {
-      await request(app.getHttpServer()).delete('/veiculos/9999').expect(404);
+      await api.delete('/veiculos/9999').expect(404);
     });
   });
 });

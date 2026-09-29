@@ -7,44 +7,75 @@
 @servicoId = 1
 @servicoSemUso = 10
 
+# ---------------------------------------------------------------------------
+# AUTENTICACAO: execute a requisicao "Login" abaixo UMA VEZ antes das outras.
+# Ela e nomeada (`# @name login`), e as demais requisicoes deste arquivo
+# reaproveitam o token com {{login.response.body.token}}.
+# Credenciais do seed: admin@oficina.com / 123456
+# ---------------------------------------------------------------------------
+
+### Login (execute esta primeiro)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456"
+}
+
+
 ### Lista o catalogo (padrao: page=1, limit=10, ordenado por descricao)
 GET {{baseUrl}}/servicos
+Authorization: Bearer {{login.response.body.token}}
 
 ### Lista com paginacao explicita
 GET {{baseUrl}}/servicos?page=1&limit=5
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por descricao (parcial, sem diferenciar maiusculas)
 GET {{baseUrl}}/servicos?descricao=troca
+Authorization: Bearer {{login.response.body.token}}
 
 ### Faixa de preco (limites inclusivos)
 GET {{baseUrl}}/servicos?preco_min=100&preco_max=500
+Authorization: Bearer {{login.response.body.token}}
 
 ### Somente preco minimo
 GET {{baseUrl}}/servicos?preco_min=1000
+Authorization: Bearer {{login.response.body.token}}
 
 ### Somente preco maximo
 GET {{baseUrl}}/servicos?preco_max=100
+Authorization: Bearer {{login.response.body.token}}
 
 ### Faixa de preco ordenada por preco decrescente
 GET {{baseUrl}}/servicos?preco_min=100&preco_max=500&ordenar_por=preco&ordem=desc
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordena por tempo estimado crescente
 GET {{baseUrl}}/servicos?ordenar_por=tempo_estimado&ordem=asc
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordena por descricao decrescente
 GET {{baseUrl}}/servicos?ordenar_por=descricao&ordem=desc
+Authorization: Bearer {{login.response.body.token}}
 
 ### Somente servicos ativos
 GET {{baseUrl}}/servicos?ativo=true
+Authorization: Bearer {{login.response.body.token}}
 
 ### Somente servicos inativos (o seed tem um: Polimento tecnico e cristalizacao)
 GET {{baseUrl}}/servicos?ativo=false
+Authorization: Bearer {{login.response.body.token}}
 
 ### Busca um servico pelo id
 GET {{baseUrl}}/servicos/{{servicoId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Cadastra um servico (ativo assume true quando omitido)
 POST {{baseUrl}}/servicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -55,6 +86,7 @@ Content-Type: application/json
 
 ### Cadastra um servico ja inativo
 POST {{baseUrl}}/servicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -68,6 +100,7 @@ Content-Type: application/json
 # Reajustar o preco aqui NAO altera ordens de servico existentes:
 # cada item guarda o precoUnitario da epoca.
 PUT {{baseUrl}}/servicos/{{servicoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -79,6 +112,7 @@ Content-Type: application/json
 
 ### Desativa um servico sem excluir (uso recomendado para quem tem historico)
 PUT {{baseUrl}}/servicos/{{servicoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -90,6 +124,7 @@ Content-Type: application/json
 
 ### Exclui um servico que nunca foi lancado em uma ordem
 DELETE {{baseUrl}}/servicos/{{servicoSemUso}}
+Authorization: Bearer {{login.response.body.token}}
 
 # ---------------------------------------------------------------------------
 # Casos de erro
@@ -97,6 +132,7 @@ DELETE {{baseUrl}}/servicos/{{servicoSemUso}}
 
 ### 400 - varios campos invalidos (veja o array "detalhes")
 POST {{baseUrl}}/servicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -107,6 +143,7 @@ Content-Type: application/json
 
 ### 400 - preco com mais de 2 casas decimais
 POST {{baseUrl}}/servicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -117,18 +154,23 @@ Content-Type: application/json
 
 ### 400 - preco_min maior que preco_max
 GET {{baseUrl}}/servicos?preco_min=500&preco_max=100
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - ordenar_por com valor nao suportado
 GET {{baseUrl}}/servicos?ordenar_por=valor
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - ordem invalida
 GET {{baseUrl}}/servicos?ordem=crescente
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - filtro ativo com valor invalido (somente "true" ou "false")
 GET {{baseUrl}}/servicos?ativo=1
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - ativo omitido no PUT
 PUT {{baseUrl}}/servicos/{{servicoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -139,9 +181,11 @@ Content-Type: application/json
 
 ### 404 - servico inexistente
 GET {{baseUrl}}/servicos/9999
+Authorization: Bearer {{login.response.body.token}}
 
 ### 409 - descricao ja cadastrada (mesma do servico 1 do seed, em outra caixa)
 POST {{baseUrl}}/servicos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -152,3 +196,4 @@ Content-Type: application/json
 
 ### 409 - exclusao de servico usado em ordens de servico (orienta desativar)
 DELETE {{baseUrl}}/servicos/{{servicoId}}
+Authorization: Bearer {{login.response.body.token}}

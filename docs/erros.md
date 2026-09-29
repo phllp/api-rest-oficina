@@ -35,14 +35,19 @@ de array (`itens.0.quantidade`):
 A `mensagem` pode mudar de redação entre versões; o `erro` não. Nunca faça
 parsing da mensagem — trate o código.
 
+Toda resposta **401** acompanha o header `WWW-Authenticate: Bearer`, como manda
+o HTTP (RFC 9110): é assim que o cliente descobre *como* se autenticar. Detalhes
+do fluxo em [`autenticacao.md`](./autenticacao.md).
+
 ## Tabela de códigos
 
 | HTTP | Código                   | Quando ocorre                                                                     |
 | ---- | ------------------------ | --------------------------------------------------------------------------------- |
 | 400  | `DADOS_INVALIDOS`        | Corpo ou query reprovados na validação; `:id` que não é inteiro positivo; campo não declarado no DTO |
 | 400  | `JSON_INVALIDO`          | O corpo da requisição não é um JSON sintaticamente válido                         |
-| 401  | `NAO_AUTENTICADO`        | Rota protegida acessada sem token                                                 |
-| 401  | `TOKEN_INVALIDO`         | Token presente, porém inválido, malformado ou expirado                            |
+| 401  | `NAO_AUTENTICADO`        | Rota protegida acessada sem o header `Authorization`                               |
+| 401  | `TOKEN_INVALIDO`         | Header fora do formato `Bearer <token>`, token malformado/adulterado, expirado, ou usuário do token inexistente |
+| 401  | `CREDENCIAIS_INVALIDAS`  | E-mail ou senha incorretos em `POST /auth/login`                                   |
 | 404  | `RECURSO_NAO_ENCONTRADO` | O id informado não existe (também cobre o `P2025` do Prisma)                       |
 | 404  | `ROTA_NAO_ENCONTRADA`    | A URL não corresponde a nenhuma rota da API                                       |
 | 409  | `REGISTRO_DUPLICADO`     | Violação de unicidade: CPF, e-mail, placa ou serviço repetido na mesma OS (`P2002`) |
@@ -90,7 +95,72 @@ parsing da mensagem — trate o código.
 {
   "status": 401,
   "erro": "NAO_AUTENTICADO",
-  "mensagem": "Autenticação necessária para acessar este recurso."
+  "mensagem": "Token de autenticação não informado."
+}
+```
+
+Resposta acompanhada de `WWW-Authenticate: Bearer`.
+
+### 3.1. Header no formato errado
+
+`GET /clientes` com `Authorization: Basic YWRtaW46MTIzNDU2` (ou o token sem o
+esquema `Bearer`)
+
+```json
+{
+  "status": 401,
+  "erro": "TOKEN_INVALIDO",
+  "mensagem": "Formato do token inválido. Use: Authorization: Bearer <token>."
+}
+```
+
+### 3.2. Token inválido ou adulterado
+
+`GET /clientes` com um token cuja assinatura não confere
+
+```json
+{
+  "status": 401,
+  "erro": "TOKEN_INVALIDO",
+  "mensagem": "Token inválido."
+}
+```
+
+### 3.3. Token expirado
+
+`GET /clientes` com um token emitido há mais de `JWT_EXPIRES_IN`
+
+```json
+{
+  "status": 401,
+  "erro": "TOKEN_INVALIDO",
+  "mensagem": "Token expirado. Faça login novamente."
+}
+```
+
+### 3.4. Usuário do token removido
+
+`GET /auth/me` com um token válido cujo usuário já não existe no banco
+
+```json
+{
+  "status": 401,
+  "erro": "TOKEN_INVALIDO",
+  "mensagem": "O usuário deste token não existe mais. Faça login novamente."
+}
+```
+
+### 3.5. Credenciais inválidas no login
+
+`POST /auth/login` com senha errada **ou** com e-mail inexistente — a resposta é
+deliberadamente idêntica nos dois casos, para não revelar quais e-mails estão
+cadastrados
+
+```json
+{
+  "status": 401,
+  "erro": "CREDENCIAIS_INVALIDAS",
+  "mensagem": "E-mail ou senha inválidos."
 }
 ```
 

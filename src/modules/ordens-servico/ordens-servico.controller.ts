@@ -19,6 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ApiErros } from '../../common/decorators/api-erros.decorator.js';
+import { ApiRotaProtegida } from '../../common/decorators/api-rota-protegida.decorator.js';
 import { ApiPaginatedResponse } from '../../common/decorators/api-paginated-response.decorator.js';
 import { CodigosErro } from '../../common/errors/codigos-erro.js';
 import { ParseIdPipe } from '../../common/pipes/parse-id.pipe.js';
@@ -38,6 +39,7 @@ import {
 } from './ordens-servico.service.js';
 
 @ApiTags('ordens-servico')
+@ApiRotaProtegida()
 @Controller('ordens-servico')
 export class OrdensServicoController {
   constructor(private readonly ordensServicoService: OrdensServicoService) {}

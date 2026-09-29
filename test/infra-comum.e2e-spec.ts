@@ -147,6 +147,13 @@ function camposComErro(corpo: CorpoErro): string[] {
   return (corpo.detalhes ?? []).map((detalhe) => detalhe.campo);
 }
 
+/**
+ * Este arquivo monta um modulo proprio (FakeModule), sem o AppModule -- logo
+ * sem o AuthModule que registra o JwtAuthGuard global. Por isso as chamadas
+ * aqui nao levam token: o objetivo e exercitar a infraestrutura comum
+ * (validacao, filtro de erros, paginacao) isolada da autenticacao, que tem
+ * cobertura propria em auth.e2e-spec.ts.
+ */
 describe('Infraestrutura comum (e2e)', () => {
   let app: INestApplication<App>;
 

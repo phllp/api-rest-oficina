@@ -1,8 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
-import { criarAppDeTeste, limparDados } from './util-app-teste.js';
+import {
+  criarAppDeTeste,
+  limparDados,
+  type ClienteHttpAutenticado,
+} from './util-app-teste.js';
 
 interface CorpoErro {
   status: number;
@@ -49,11 +52,13 @@ function novoCliente(indice = 0, extras: Record<string, unknown> = {}) {
 
 describe('Clientes (e2e)', () => {
   let app: INestApplication<App>;
+  let api: ClienteHttpAutenticado;
   let prisma: PrismaService;
 
   beforeAll(async () => {
     const criado = await criarAppDeTeste();
     app = criado.app as INestApplication<App>;
+    api = criado.api;
     prisma = criado.prisma;
   });
 
@@ -68,7 +73,7 @@ describe('Clientes (e2e)', () => {
 
   describe('POST /clientes', () => {
     it('cadastra e responde 201 com o cliente criado', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/clientes')
         .send(novoCliente(0))
         .expect(201);
@@ -87,7 +92,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('normaliza CPF com mascara, e-mail em maiusculas e telefone formatado', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/clientes')
         .send({
           nome: '  Maria Silva  ',
@@ -106,7 +111,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 400 com detalhes por campo invalido', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/clientes')
         .send({
           nome: 'A',
@@ -132,7 +137,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 400 quando um campo nao declarado e enviado', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/clientes')
         .send(novoCliente(0, { apelido: 'Teste' }))
         .expect(400);
@@ -141,12 +146,9 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 409 REGISTRO_DUPLICADO para CPF repetido', async () => {
-      await request(app.getHttpServer())
-        .post('/clientes')
-        .send(novoCliente(0))
-        .expect(201);
+      await api.post('/clientes').send(novoCliente(0)).expect(201);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/clientes')
         .send(novoCliente(0, { email: 'outro@email.com' }))
         .expect(409);
@@ -159,12 +161,9 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 409 REGISTRO_DUPLICADO para e-mail repetido', async () => {
-      await request(app.getHttpServer())
-        .post('/clientes')
-        .send(novoCliente(0))
-        .expect(201);
+      await api.post('/clientes').send(novoCliente(0)).expect(201);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/clientes')
         .send(novoCliente(1, { email: 'cliente.teste.1@email.com' }))
         .expect(409);
@@ -203,9 +202,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('lista paginado, ordenado por nome, com os padroes page=1 e limit=10', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes')
-        .expect(200);
+      const resposta = await api.get('/clientes').expect(200);
 
       const corpo = resposta.body as ListaClientes;
 
@@ -218,9 +215,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('respeita page e limit', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes?page=2&limit=2')
-        .expect(200);
+      const resposta = await api.get('/clientes?page=2&limit=2').expect(200);
 
       const corpo = resposta.body as ListaClientes;
 
@@ -230,9 +225,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('pagina alem do fim devolve 200 com data vazio', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes?page=99&limit=10')
-        .expect(200);
+      const resposta = await api.get('/clientes?page=99&limit=10').expect(200);
 
       expect(resposta.body).toEqual({
         page: 99,
@@ -243,9 +236,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('filtra por nome parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes?nome=ANA')
-        .expect(200);
+      const resposta = await api.get('/clientes?nome=ANA').expect(200);
 
       const corpo = resposta.body as ListaClientes;
 
@@ -254,7 +245,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('filtra por cpf exato aceitando mascara', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/clientes?cpf=529.982.247-25')
         .expect(200);
 
@@ -265,17 +256,13 @@ describe('Clientes (e2e)', () => {
     });
 
     it('filtra por email parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes?email=EMAIL.COM')
-        .expect(200);
+      const resposta = await api.get('/clientes?email=EMAIL.COM').expect(200);
 
       expect((resposta.body as ListaClientes).total).toBe(2);
     });
 
     it('responde 400 para page ou limit fora da faixa', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes?page=0&limit=500')
-        .expect(400);
+      const resposta = await api.get('/clientes?page=0&limit=500').expect(400);
 
       const campos = ((resposta.body as CorpoErro).detalhes ?? []).map(
         (d) => d.campo,
@@ -299,9 +286,7 @@ describe('Clientes (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
-        .get(`/clientes/${cliente.id}`)
-        .expect(200);
+      const resposta = await api.get(`/clientes/${cliente.id}`).expect(200);
 
       expect(resposta.body).toMatchObject({
         id: cliente.id,
@@ -316,9 +301,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 404 quando o cliente nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes/9999')
-        .expect(404);
+      const resposta = await api.get('/clientes/9999').expect(404);
 
       expect(resposta.body).toEqual({
         status: 404,
@@ -328,9 +311,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 400 para id invalido', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes/abc')
-        .expect(400);
+      const resposta = await api.get('/clientes/abc').expect(400);
 
       expect(resposta.body).toMatchObject({
         erro: 'DADOS_INVALIDOS',
@@ -363,7 +344,7 @@ describe('Clientes (e2e)', () => {
         ],
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/clientes/${cliente.id}/veiculos`)
         .expect(200);
 
@@ -380,7 +361,7 @@ describe('Clientes (e2e)', () => {
     it('devolve array vazio quando o cliente nao tem veiculos', async () => {
       const cliente = await prisma.cliente.create({ data: novoCliente(0) });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/clientes/${cliente.id}/veiculos`)
         .expect(200);
 
@@ -388,9 +369,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 404 quando o cliente nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/clientes/9999/veiculos')
-        .expect(404);
+      const resposta = await api.get('/clientes/9999/veiculos').expect(404);
 
       expect((resposta.body as CorpoErro).erro).toBe('RECURSO_NAO_ENCONTRADO');
     });
@@ -400,7 +379,7 @@ describe('Clientes (e2e)', () => {
     it('substitui os dados e responde 200', async () => {
       const cliente = await prisma.cliente.create({ data: novoCliente(0) });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/clientes/${cliente.id}`)
         .send({
           nome: 'Nome Atualizado',
@@ -421,7 +400,7 @@ describe('Clientes (e2e)', () => {
     it('permite manter o proprio CPF e e-mail', async () => {
       const cliente = await prisma.cliente.create({ data: novoCliente(0) });
 
-      await request(app.getHttpServer())
+      await api
         .put(`/clientes/${cliente.id}`)
         .send(novoCliente(0, { nome: 'Mesmo CPF' }))
         .expect(200);
@@ -431,7 +410,7 @@ describe('Clientes (e2e)', () => {
       const primeiro = await prisma.cliente.create({ data: novoCliente(0) });
       await prisma.cliente.create({ data: novoCliente(1) });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/clientes/${primeiro.id}`)
         .send(novoCliente(1, { nome: 'Tentando roubar o CPF' }))
         .expect(409);
@@ -442,16 +421,13 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 404 quando o cliente nao existe', async () => {
-      await request(app.getHttpServer())
-        .put('/clientes/9999')
-        .send(novoCliente(0))
-        .expect(404);
+      await api.put('/clientes/9999').send(novoCliente(0)).expect(404);
     });
 
     it('responde 400 quando falta um campo obrigatorio (PUT e substituicao total)', async () => {
       const cliente = await prisma.cliente.create({ data: novoCliente(0) });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/clientes/${cliente.id}`)
         .send({ nome: 'Somente o nome' })
         .expect(400);
@@ -470,9 +446,7 @@ describe('Clientes (e2e)', () => {
     it('exclui e responde 204 sem corpo', async () => {
       const cliente = await prisma.cliente.create({ data: novoCliente(0) });
 
-      const resposta = await request(app.getHttpServer())
-        .delete(`/clientes/${cliente.id}`)
-        .expect(204);
+      const resposta = await api.delete(`/clientes/${cliente.id}`).expect(204);
 
       expect(resposta.text).toBe('');
       await expect(
@@ -501,9 +475,7 @@ describe('Clientes (e2e)', () => {
         ],
       });
 
-      const resposta = await request(app.getHttpServer())
-        .delete(`/clientes/${cliente.id}`)
-        .expect(409);
+      const resposta = await api.delete(`/clientes/${cliente.id}`).expect(409);
 
       expect(resposta.body).toEqual({
         status: 409,
@@ -514,7 +486,7 @@ describe('Clientes (e2e)', () => {
     });
 
     it('responde 404 quando o cliente nao existe', async () => {
-      await request(app.getHttpServer()).delete('/clientes/9999').expect(404);
+      await api.delete('/clientes/9999').expect(404);
     });
   });
 });

@@ -46,10 +46,22 @@ export class VariaveisDeAmbiente {
 
   @IsNotEmpty({ message: 'JWT_SECRET e obrigatorio e nao pode ficar vazio.' })
   @IsString({ message: 'JWT_SECRET deve ser um texto.' })
-  @MinLength(16, {
-    message: 'JWT_SECRET deve ter no minimo 16 caracteres.',
+  @MinLength(32, {
+    message: 'JWT_SECRET deve ter no minimo 32 caracteres.',
   })
   JWT_SECRET!: string;
+
+  /**
+   * Validade do token: numero de segundos ou numero seguido de s/m/h/d
+   * (formato aceito pelo @nestjs/jwt). Exemplos: "3600", "30m", "1h", "7d".
+   */
+  @IsOptional()
+  @IsString({ message: 'JWT_EXPIRES_IN deve ser um texto.' })
+  @Matches(/^\d+[smhd]?$/, {
+    message:
+      'JWT_EXPIRES_IN deve ser um numero de segundos ou um numero seguido de s, m, h ou d (ex.: 1h).',
+  })
+  JWT_EXPIRES_IN: string = '1h';
 }
 
 /**

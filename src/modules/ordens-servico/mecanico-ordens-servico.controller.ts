@@ -1,6 +1,7 @@
 import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErros } from '../../common/decorators/api-erros.decorator.js';
+import { ApiRotaProtegida } from '../../common/decorators/api-rota-protegida.decorator.js';
 import { ParseIdPipe } from '../../common/pipes/parse-id.pipe.js';
 import { FiltroStatusQueryDto } from './dto/filtros-ordem-servico-query.dto.js';
 import { OrdemServicoResumoDto } from './dto/ordem-servico-resposta.dto.js';
@@ -11,6 +12,7 @@ import {
 
 /** Declarado no modulo de ordens de servico; tag do recurso pai no Swagger. */
 @ApiTags('mecanicos')
+@ApiRotaProtegida()
 @Controller('mecanicos/:id/ordens-servico')
 export class MecanicoOrdensServicoController {
   constructor(private readonly ordensServicoService: OrdensServicoService) {}

@@ -8,41 +8,71 @@
 @clienteId = 3
 @veiculoComOrdens = 1
 
+# ---------------------------------------------------------------------------
+# AUTENTICACAO: execute a requisicao "Login" abaixo UMA VEZ antes das outras.
+# Ela e nomeada (`# @name login`), e as demais requisicoes deste arquivo
+# reaproveitam o token com {{login.response.body.token}}.
+# Credenciais do seed: admin@oficina.com / 123456
+# ---------------------------------------------------------------------------
+
+### Login (execute esta primeiro)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456"
+}
+
+
 ### Lista os veiculos (padrao: page=1, limit=10)
 GET {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 
 ### Lista a segunda pagina (o seed tem 35 veiculos)
 GET {{baseUrl}}/veiculos?page=2&limit=10
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por placa (parcial; o valor e normalizado para maiusculas sem hifen)
 GET {{baseUrl}}/veiculos?placa=abc
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por marca (parcial, sem diferenciar maiusculas)
 GET {{baseUrl}}/veiculos?marca=fiat
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por modelo (parcial, sem diferenciar maiusculas)
 GET {{baseUrl}}/veiculos?modelo=onix
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por ano exato
 GET {{baseUrl}}/veiculos?ano=2021
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra os veiculos de um cliente
 GET {{baseUrl}}/veiculos?cliente_id={{clienteId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Combina filtros e paginacao
 GET {{baseUrl}}/veiculos?marca=fiat&ano=2021&page=1&limit=5
+Authorization: Bearer {{login.response.body.token}}
 
 ### Busca um veiculo pelo id (inclui o cliente resumido)
 GET {{baseUrl}}/veiculos/{{veiculoId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Historico de ordens de servico do veiculo
 GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 
 ### Historico do veiculo filtrando por status
 GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico?status=CONCLUIDA
+Authorization: Bearer {{login.response.body.token}}
 
 ### Cadastra um veiculo
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -56,6 +86,7 @@ Content-Type: application/json
 
 ### Cadastra um veiculo aceitando placa em minusculas e com hifen
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -68,6 +99,7 @@ Content-Type: application/json
 
 ### Substitui os dados de um veiculo (PUT = substituicao completa)
 PUT {{baseUrl}}/veiculos/{{veiculoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -81,6 +113,7 @@ Content-Type: application/json
 
 ### Transfere o veiculo para outro proprietario (troca o clienteId)
 PUT {{baseUrl}}/veiculos/{{veiculoId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -94,6 +127,7 @@ Content-Type: application/json
 
 ### Exclui um veiculo sem ordens de servico
 DELETE {{baseUrl}}/veiculos/35
+Authorization: Bearer {{login.response.body.token}}
 
 # ---------------------------------------------------------------------------
 # Casos de erro
@@ -101,6 +135,7 @@ DELETE {{baseUrl}}/veiculos/35
 
 ### 400 - varios campos invalidos (veja o array "detalhes")
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -113,6 +148,7 @@ Content-Type: application/json
 
 ### 400 - placa fora dos padroes aceitos
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -125,21 +161,26 @@ Content-Type: application/json
 
 ### 400 - JSON malformado
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 { "placa":
 
 ### 400 - id nao inteiro
 GET {{baseUrl}}/veiculos/abc
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - cliente_id invalido no filtro
 GET {{baseUrl}}/veiculos?cliente_id=abc
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - veiculo inexistente
 GET {{baseUrl}}/veiculos/9999
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - cliente informado nao existe
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -152,6 +193,7 @@ Content-Type: application/json
 
 ### 409 - placa ja cadastrada (placa do veiculo 1 do seed)
 POST {{baseUrl}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -165,3 +207,4 @@ Content-Type: application/json
 
 ### 409 - exclusao de veiculo que possui ordens de servico
 DELETE {{baseUrl}}/veiculos/{{veiculoComOrdens}}
+Authorization: Bearer {{login.response.body.token}}

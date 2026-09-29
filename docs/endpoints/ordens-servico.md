@@ -5,6 +5,10 @@ executados e o valor cobrado. Todas as respostas de erro seguem o padrão
 descrito em [`../erros.md`](../erros.md). Os exemplos usam os dados do seed
 (`npm run db:seed`).
 
+> **Requer autenticação:** todas as rotas desta página exigem o header
+> `Authorization: Bearer <token>`. Veja [`../autenticacao.md`](../autenticacao.md)
+> para obter o token.
+
 | Método | URL                              | Objetivo resumido                           |
 | ------ | -------------------------------- | ------------------------------------------- |
 | GET    | `/ordens-servico`                | Lista paginada com filtros                  |

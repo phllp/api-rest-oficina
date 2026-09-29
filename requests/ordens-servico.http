@@ -10,6 +10,24 @@
 @clienteId = 3
 @servicoId = 1
 
+# ---------------------------------------------------------------------------
+# AUTENTICACAO: execute a requisicao "Login" abaixo UMA VEZ antes das outras.
+# Ela e nomeada (`# @name login`), e as demais requisicoes deste arquivo
+# reaproveitam o token com {{login.response.body.token}}.
+# Credenciais do seed: admin@oficina.com / 123456
+# ---------------------------------------------------------------------------
+
+### Login (execute esta primeiro)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456"
+}
+
+
 # ===========================================================================
 # ROTEIRO: ciclo de vida completo de uma ordem de servico
 # Execute as requisicoes desta secao em sequencia, de cima para baixo.
@@ -18,6 +36,7 @@
 ### 1. Abre a ordem sem mecanico (nasce ABERTA)
 # @name abrirOrdem
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -32,15 +51,18 @@ Content-Type: application/json
 
 ### 2. Confere o detalhe (itens com subtotal e valorTotal somado)
 GET {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### 3. Tentar iniciar sem mecanico -> 409
 PATCH {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}/status
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 { "status": "EM_ANDAMENTO" }
 
 ### 4. Atribui um mecanico e ajusta os itens (PUT = substituicao completa)
 PUT {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -56,18 +78,21 @@ Content-Type: application/json
 
 ### 5. Inicia o servico (ABERTA -> EM_ANDAMENTO)
 PATCH {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}/status
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 { "status": "EM_ANDAMENTO" }
 
 ### 6. Conclui (EM_ANDAMENTO -> CONCLUIDA; preenche dataConclusao)
 PATCH {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}/status
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 { "status": "CONCLUIDA" }
 
 ### 7. Tentar alterar depois de concluir -> 409
 PUT {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -78,6 +103,7 @@ Content-Type: application/json
 
 ### 8. Tentar excluir depois de concluir -> 409
 DELETE {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
+Authorization: Bearer {{login.response.body.token}}
 
 # ===========================================================================
 # Listagem e filtros
@@ -85,33 +111,43 @@ DELETE {{baseUrl}}/ordens-servico/{{abrirOrdem.response.body.id}}
 
 ### Lista (padrao: page=1, limit=10, da mais recente para a mais antiga)
 GET {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 
 ### Pagina 2 com 5 por pagina
 GET {{baseUrl}}/ordens-servico?page=2&limit=5
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por um status
 GET {{baseUrl}}/ordens-servico?status=ABERTA
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por varios status (separados por virgula)
 GET {{baseUrl}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de um veiculo
 GET {{baseUrl}}/ordens-servico?veiculo_id={{veiculoId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de um mecanico
 GET {{baseUrl}}/ordens-servico?mecanico_id={{mecanicoId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de todos os veiculos de um cliente
 GET {{baseUrl}}/ordens-servico?cliente_id={{clienteId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Intervalo de abertura (ambos inclusivos, em UTC)
 GET {{baseUrl}}/ordens-servico?data_inicio=2026-04-01&data_fim=2026-09-30
+Authorization: Bearer {{login.response.body.token}}
 
 ### Combina status, intervalo e paginacao
 GET {{baseUrl}}/ordens-servico?status=ABERTA,EM_ANDAMENTO&data_inicio=2026-04-01&page=1&limit=5
+Authorization: Bearer {{login.response.body.token}}
 
 ### Detalhe de uma ordem
 GET {{baseUrl}}/ordens-servico/{{ordemId}}
+Authorization: Bearer {{login.response.body.token}}
 
 # ===========================================================================
 # Endpoints de relacionamento
@@ -119,15 +155,19 @@ GET {{baseUrl}}/ordens-servico/{{ordemId}}
 
 ### Historico de um veiculo
 GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 
 ### Historico de um veiculo, filtrando o status
 GET {{baseUrl}}/veiculos/{{veiculoId}}/ordens-servico?status=CONCLUIDA
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de um mecanico
 GET {{baseUrl}}/mecanicos/{{mecanicoId}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de um cliente (todos os veiculos dele)
 GET {{baseUrl}}/clientes/{{clienteId}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
+Authorization: Bearer {{login.response.body.token}}
 
 # ===========================================================================
 # Casos de erro
@@ -135,6 +175,7 @@ GET {{baseUrl}}/clientes/{{clienteId}}/ordens-servico?status=ABERTA,EM_ANDAMENTO
 
 ### 400 - varios campos invalidos
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -145,6 +186,7 @@ Content-Type: application/json
 
 ### 400 - servicoId repetido nos itens
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -158,6 +200,7 @@ Content-Type: application/json
 
 ### 400 - campos controlados pelo servidor nao podem vir no corpo
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -170,6 +213,7 @@ Content-Type: application/json
 
 ### 400 - veiculoId no PUT (o veiculo de uma ordem e imutavel)
 PUT {{baseUrl}}/ordens-servico/{{ordemId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -180,24 +224,30 @@ Content-Type: application/json
 
 ### 400 - status fora do enum
 PATCH {{baseUrl}}/ordens-servico/{{ordemId}}/status
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 { "status": "PAUSADA" }
 
 ### 400 - status invalido no filtro
 GET {{baseUrl}}/ordens-servico?status=INVALIDO
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - data fora do formato YYYY-MM-DD
 GET {{baseUrl}}/ordens-servico?data_inicio=01/04/2026
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - data_inicio maior que data_fim
 GET {{baseUrl}}/ordens-servico?data_inicio=2026-09-30&data_fim=2026-04-01
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - ordem inexistente
 GET {{baseUrl}}/ordens-servico/9999
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - veiculo inexistente
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -208,6 +258,7 @@ Content-Type: application/json
 
 ### 404 - servico inexistente
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -218,6 +269,7 @@ Content-Type: application/json
 
 ### 409 - mecanico inativo (id 5 no seed: Sergio Bonfim)
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -229,6 +281,7 @@ Content-Type: application/json
 
 ### 409 - servico inativo (id 10 no seed: Polimento tecnico e cristalizacao)
 POST {{baseUrl}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -239,3 +292,4 @@ Content-Type: application/json
 
 ### 404 - ordens de um veiculo inexistente
 GET {{baseUrl}}/veiculos/9999/ordens-servico
+Authorization: Bearer {{login.response.body.token}}

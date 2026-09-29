@@ -7,41 +7,71 @@
 @clienteId = 1
 @clienteComVeiculos = 3
 
+# ---------------------------------------------------------------------------
+# AUTENTICACAO: execute a requisicao "Login" abaixo UMA VEZ antes das outras.
+# Ela e nomeada (`# @name login`), e as demais requisicoes deste arquivo
+# reaproveitam o token com {{login.response.body.token}}.
+# Credenciais do seed: admin@oficina.com / 123456
+# ---------------------------------------------------------------------------
+
+### Login (execute esta primeiro)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456"
+}
+
+
 ### Lista os clientes (padrao: page=1, limit=10)
 GET {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 
 ### Lista a segunda pagina (o seed tem 25 clientes)
 GET {{baseUrl}}/clientes?page=2&limit=10
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por nome (busca parcial, sem diferenciar maiusculas)
 GET {{baseUrl}}/clientes?nome=ana
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por CPF (busca exata, aceita mascara)
 GET {{baseUrl}}/clientes?cpf=529.982.247-25
+Authorization: Bearer {{login.response.body.token}}
 
 ### Filtra por e-mail (busca parcial)
 GET {{baseUrl}}/clientes?email=email.com
+Authorization: Bearer {{login.response.body.token}}
 
 ### Combina filtro e paginacao
 GET {{baseUrl}}/clientes?nome=a&page=1&limit=5
+Authorization: Bearer {{login.response.body.token}}
 
 ### Busca um cliente pelo id (inclui os veiculos resumidos)
 GET {{baseUrl}}/clientes/{{clienteId}}
+Authorization: Bearer {{login.response.body.token}}
 
 ### Lista os veiculos de um cliente que possui veiculos
 GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/veiculos
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens de servico de todos os veiculos do cliente
 GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/ordens-servico
+Authorization: Bearer {{login.response.body.token}}
 
 ### Ordens do cliente filtrando por status
 GET {{baseUrl}}/clientes/{{clienteComVeiculos}}/ordens-servico?status=CONCLUIDA
+Authorization: Bearer {{login.response.body.token}}
 
 ### Lista os veiculos de um cliente sem veiculos (array vazio)
 GET {{baseUrl}}/clientes/1/veiculos
+Authorization: Bearer {{login.response.body.token}}
 
 ### Cadastra um cliente
 POST {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -53,6 +83,7 @@ Content-Type: application/json
 
 ### Substitui os dados de um cliente (PUT = substituicao completa)
 PUT {{baseUrl}}/clientes/{{clienteId}}
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -64,6 +95,7 @@ Content-Type: application/json
 
 ### Exclui um cliente sem veiculos
 DELETE {{baseUrl}}/clientes/25
+Authorization: Bearer {{login.response.body.token}}
 
 # ---------------------------------------------------------------------------
 # Casos de erro
@@ -71,6 +103,7 @@ DELETE {{baseUrl}}/clientes/25
 
 ### 400 - varios campos invalidos (veja o array "detalhes")
 POST {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -82,6 +115,7 @@ Content-Type: application/json
 
 ### 400 - campo nao declarado no DTO (forbidNonWhitelisted)
 POST {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -94,24 +128,30 @@ Content-Type: application/json
 
 ### 400 - JSON malformado
 POST {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 { "nome":
 
 ### 400 - id nao inteiro
 GET {{baseUrl}}/clientes/abc
+Authorization: Bearer {{login.response.body.token}}
 
 ### 400 - page fora da faixa
 GET {{baseUrl}}/clientes?page=0
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - cliente inexistente
 GET {{baseUrl}}/clientes/9999
+Authorization: Bearer {{login.response.body.token}}
 
 ### 404 - veiculos de um cliente inexistente
 GET {{baseUrl}}/clientes/9999/veiculos
+Authorization: Bearer {{login.response.body.token}}
 
 ### 409 - CPF ja cadastrado (CPF do cliente 1 do seed)
 POST {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -123,6 +163,7 @@ Content-Type: application/json
 
 ### 409 - e-mail ja cadastrado
 POST {{baseUrl}}/clientes
+Authorization: Bearer {{login.response.body.token}}
 Content-Type: application/json
 
 {
@@ -134,3 +175,4 @@ Content-Type: application/json
 
 ### 409 - exclusao de cliente que possui veiculos
 DELETE {{baseUrl}}/clientes/{{clienteComVeiculos}}
+Authorization: Bearer {{login.response.body.token}}

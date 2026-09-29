@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ApiErros } from '../../common/decorators/api-erros.decorator.js';
+import { ApiRotaProtegida } from '../../common/decorators/api-rota-protegida.decorator.js';
 import { CodigosErro } from '../../common/errors/codigos-erro.js';
 import { ApiPaginatedResponse } from '../../common/decorators/api-paginated-response.decorator.js';
 import { ParseIdPipe } from '../../common/pipes/parse-id.pipe.js';
@@ -33,6 +34,7 @@ import { CriarClienteDto } from './dto/criar-cliente.dto.js';
 import { FiltrosClienteQueryDto } from './dto/filtros-cliente-query.dto.js';
 
 @ApiTags('clientes')
+@ApiRotaProtegida()
 @Controller('clientes')
 export class ClientesController {
   constructor(private readonly clientesService: ClientesService) {}

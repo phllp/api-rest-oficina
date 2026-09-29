@@ -1,8 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
-import { criarAppDeTeste, limparDados } from './util-app-teste.js';
+import {
+  criarAppDeTeste,
+  limparDados,
+  type ClienteHttpAutenticado,
+} from './util-app-teste.js';
 
 interface CorpoErro {
   status: number;
@@ -39,11 +42,13 @@ function novoServico(extras: Record<string, unknown> = {}) {
 
 describe('Servicos (e2e)', () => {
   let app: INestApplication<App>;
+  let api: ClienteHttpAutenticado;
   let prisma: PrismaService;
 
   beforeAll(async () => {
     const criado = await criarAppDeTeste();
     app = criado.app as INestApplication<App>;
+    api = criado.api;
     prisma = criado.prisma;
   });
 
@@ -58,7 +63,7 @@ describe('Servicos (e2e)', () => {
 
   describe('POST /servicos', () => {
     it('cadastra com ativo true por padrao e devolve preco como number', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/servicos')
         .send(novoServico())
         .expect(201);
@@ -76,7 +81,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('aceita ativo false explicito', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/servicos')
         .send(novoServico({ ativo: false }))
         .expect(201);
@@ -85,7 +90,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('responde 400 com detalhes por campo invalido', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/servicos')
         .send({ descricao: 'ab', preco: 0, tempoEstimadoMin: 1 })
         .expect(400);
@@ -101,7 +106,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('rejeita preco com mais de 2 casas decimais', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/servicos')
         .send(novoServico({ preco: 189.999 }))
         .expect(400);
@@ -115,19 +120,16 @@ describe('Servicos (e2e)', () => {
     });
 
     it('rejeita preco acima do limite do Decimal(10,2)', async () => {
-      await request(app.getHttpServer())
+      await api
         .post('/servicos')
         .send(novoServico({ preco: 100000000 }))
         .expect(400);
     });
 
     it('responde 409 quando a descricao ja existe', async () => {
-      await request(app.getHttpServer())
-        .post('/servicos')
-        .send(novoServico())
-        .expect(201);
+      await api.post('/servicos').send(novoServico()).expect(201);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/servicos')
         .send(novoServico({ preco: 199.9 }))
         .expect(409);
@@ -140,12 +142,9 @@ describe('Servicos (e2e)', () => {
     });
 
     it('detecta descricao duplicada com outra caixa e espacos nas pontas', async () => {
-      await request(app.getHttpServer())
-        .post('/servicos')
-        .send(novoServico())
-        .expect(201);
+      await api.post('/servicos').send(novoServico()).expect(201);
 
-      await request(app.getHttpServer())
+      await api
         .post('/servicos')
         .send(novoServico({ descricao: '  TROCA DE OLEO E FILTRO  ' }))
         .expect(409);
@@ -185,9 +184,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('lista paginado e ordenado por descricao por padrao', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos')
-        .expect(200);
+      const resposta = await api.get('/servicos').expect(200);
 
       const corpo = resposta.body as ListaServicos;
 
@@ -202,9 +199,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('respeita page e limit', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?page=2&limit=2')
-        .expect(200);
+      const resposta = await api.get('/servicos?page=2&limit=2').expect(200);
 
       const corpo = resposta.body as ListaServicos;
 
@@ -216,17 +211,13 @@ describe('Servicos (e2e)', () => {
     });
 
     it('pagina alem do fim devolve 200 com data vazio', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?page=9&limit=10')
-        .expect(200);
+      const resposta = await api.get('/servicos?page=9&limit=10').expect(200);
 
       expect(resposta.body).toEqual({ page: 9, limit: 10, total: 4, data: [] });
     });
 
     it('filtra por descricao parcial sem diferenciar maiusculas', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?descricao=TROCA')
-        .expect(200);
+      const resposta = await api.get('/servicos?descricao=TROCA').expect(200);
 
       const corpo = resposta.body as ListaServicos;
 
@@ -235,7 +226,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('filtra pela faixa de preco com limites inclusivos', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/servicos?preco_min=149&preco_max=480')
         .expect(200);
 
@@ -248,9 +239,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('filtra somente por preco minimo', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?preco_min=480')
-        .expect(200);
+      const resposta = await api.get('/servicos?preco_min=480').expect(200);
 
       const corpo = resposta.body as ListaServicos;
 
@@ -259,9 +248,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('filtra somente por preco maximo', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?preco_max=149')
-        .expect(200);
+      const resposta = await api.get('/servicos?preco_max=149').expect(200);
 
       const corpo = resposta.body as ListaServicos;
 
@@ -270,7 +257,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('responde 400 quando preco_min e maior que preco_max', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/servicos?preco_min=500&preco_max=100')
         .expect(400);
 
@@ -286,9 +273,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('filtra por ativo=false', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?ativo=false')
-        .expect(200);
+      const resposta = await api.get('/servicos?ativo=false').expect(200);
 
       const corpo = resposta.body as ListaServicos;
 
@@ -297,9 +282,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('responde 400 para ativo=abc', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?ativo=abc')
-        .expect(400);
+      const resposta = await api.get('/servicos?ativo=abc').expect(400);
 
       expect(
         ((resposta.body as CorpoErro).detalhes ?? []).map((d) => d.campo),
@@ -307,7 +290,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('ordena por preco crescente e decrescente', async () => {
-      const crescente = await request(app.getHttpServer())
+      const crescente = await api
         .get('/servicos?ordenar_por=preco&ordem=asc')
         .expect(200);
 
@@ -315,7 +298,7 @@ describe('Servicos (e2e)', () => {
         (crescente.body as ListaServicos).data.map((s) => s.preco),
       ).toEqual([50, 149, 480, 2350]);
 
-      const decrescente = await request(app.getHttpServer())
+      const decrescente = await api
         .get('/servicos?ordenar_por=preco&ordem=desc')
         .expect(200);
 
@@ -325,7 +308,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('ordena por tempo_estimado', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/servicos?ordenar_por=tempo_estimado&ordem=asc')
         .expect(200);
 
@@ -335,7 +318,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('ordena por descricao decrescente', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/servicos?ordenar_por=descricao&ordem=desc')
         .expect(200);
 
@@ -352,7 +335,7 @@ describe('Servicos (e2e)', () => {
     it.each(['valor', 'preço', 'PRECO'])(
       'responde 400 para ordenar_por=%s',
       async (valor) => {
-        const resposta = await request(app.getHttpServer())
+        const resposta = await api
           .get(`/servicos?ordenar_por=${encodeURIComponent(valor)}`)
           .expect(400);
 
@@ -363,9 +346,7 @@ describe('Servicos (e2e)', () => {
     );
 
     it('responde 400 para ordem invalida', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos?ordem=crescente')
-        .expect(400);
+      const resposta = await api.get('/servicos?ordem=crescente').expect(400);
 
       expect(
         ((resposta.body as CorpoErro).detalhes ?? []).map((d) => d.campo),
@@ -373,7 +354,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('combina faixa de preco, situacao e ordenacao', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/servicos?preco_min=100&ativo=true&ordenar_por=preco&ordem=desc')
         .expect(200);
 
@@ -393,9 +374,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
-        .get(`/servicos/${servico.id}`)
-        .expect(200);
+      const resposta = await api.get(`/servicos/${servico.id}`).expect(200);
 
       const corpo = resposta.body as ServicoResposta;
 
@@ -404,9 +383,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('responde 404 quando o servico nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/servicos/9999')
-        .expect(404);
+      const resposta = await api.get('/servicos/9999').expect(404);
 
       expect(resposta.body).toEqual({
         status: 404,
@@ -426,7 +403,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/servicos/${servico.id}`)
         .send({
           descricao: 'Troca de oleo sintetico',
@@ -482,7 +459,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      await request(app.getHttpServer())
+      await api
         .put(`/servicos/${servico.id}`)
         .send({
           descricao: 'Troca de oleo',
@@ -508,7 +485,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      await request(app.getHttpServer())
+      await api
         .put(`/servicos/${servico.id}`)
         .send({
           descricao: 'Troca de oleo',
@@ -531,7 +508,7 @@ describe('Servicos (e2e)', () => {
         data: { descricao: 'Alinhamento', preco: 149, tempoEstimadoMin: 60 },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/servicos/${primeiro.id}`)
         .send({
           descricao: 'alinhamento',
@@ -555,7 +532,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/servicos/${servico.id}`)
         .send(novoServico({ descricao: 'Troca de oleo' }))
         .expect(400);
@@ -566,7 +543,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('responde 404 quando o servico nao existe', async () => {
-      await request(app.getHttpServer())
+      await api
         .put('/servicos/9999')
         .send(novoServico({ ativo: true }))
         .expect(404);
@@ -583,9 +560,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
-        .delete(`/servicos/${servico.id}`)
-        .expect(204);
+      const resposta = await api.delete(`/servicos/${servico.id}`).expect(204);
 
       expect(resposta.text).toBe('');
       await expect(
@@ -630,9 +605,7 @@ describe('Servicos (e2e)', () => {
         },
       });
 
-      const resposta = await request(app.getHttpServer())
-        .delete(`/servicos/${servico.id}`)
-        .expect(409);
+      const resposta = await api.delete(`/servicos/${servico.id}`).expect(409);
 
       expect(resposta.body).toEqual({
         status: 409,
@@ -644,7 +617,7 @@ describe('Servicos (e2e)', () => {
     });
 
     it('responde 404 quando o servico nao existe', async () => {
-      await request(app.getHttpServer()).delete('/servicos/9999').expect(404);
+      await api.delete('/servicos/9999').expect(404);
     });
   });
 });

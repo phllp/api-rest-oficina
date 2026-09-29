@@ -30,7 +30,21 @@ export function configurarApp(app: INestApplication): void {
   const configuracaoSwagger = new DocumentBuilder()
     .setTitle('API Oficina Mecânica')
     .setDescription(
-      'API REST para gestao de clientes, veiculos, mecanicos, servicos e ordens de servico de uma oficina mecanica.',
+      [
+        'API REST para gestao de clientes, veiculos, mecanicos, servicos e ordens de servico de uma oficina mecanica.',
+        '',
+        '## Autenticacao',
+        '',
+        'Todos os endpoints exigem um token JWT, exceto `POST /auth/login` e `GET /health`.',
+        '',
+        '1. Chame **POST /auth/login** com `{ "email": "admin@oficina.com", "senha": "123456" }`.',
+        '2. Copie o valor de `token` da resposta.',
+        '3. Clique em **Authorize** (no topo desta pagina), cole o token e confirme.',
+        '',
+        'A partir dai o cadeado dos endpoints fica fechado e as chamadas levam o header',
+        '`Authorization: Bearer <token>` automaticamente. O token vale 1 hora por padrao.',
+        'Detalhes em `docs/autenticacao.md`.',
+      ].join('\n'),
     )
     .setVersion('1.0')
     .addBearerAuth()
@@ -43,8 +57,12 @@ export function configurarApp(app: INestApplication): void {
       'ordens-servico',
       'Ordens de servico: itens, calculo de valores e ciclo de vida',
     )
+    .addTag('auth', 'Autenticacao: login e identificacao do usuario')
     .build();
 
   const documento = SwaggerModule.createDocument(app, configuracaoSwagger);
-  SwaggerModule.setup('docs', app, documento);
+  SwaggerModule.setup('docs', app, documento, {
+    // Mantem o token informado no botao Authorize apos recarregar a pagina.
+    swaggerOptions: { persistAuthorization: true },
+  });
 }

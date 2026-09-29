@@ -1,0 +1,101 @@
+### Recurso: Autenticacao
+# Arquivo para a extensao REST Client do VS Code.
+#
+# COMO USAR: execute primeiro a requisicao "Login" (a primeira abaixo). Ela e
+# nomeada com `# @name login`, entao as outras requisicoes deste arquivo -- e o
+# roteiro dos demais arquivos .http -- podem reaproveitar o token com
+# {{login.response.body.token}}.
+#
+# Credenciais criadas pelo seed: admin@oficina.com / 123456
+
+@baseUrl = http://localhost:3000
+
+### Login (execute esta primeiro)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456"
+}
+
+### Usuario autenticado (usa o token do login acima)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.token}}
+
+### Chamada protegida qualquer, para confirmar que o token funciona
+GET {{baseUrl}}/clientes?limit=3
+Authorization: Bearer {{login.response.body.token}}
+
+### E-mail em maiusculas tambem funciona (normalizado para minusculas)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ADMIN@OFICINA.COM",
+  "senha": "123456"
+}
+
+# ---------------------------------------------------------------------------
+# Casos de erro
+# ---------------------------------------------------------------------------
+
+### 400 - corpo invalido (e-mail sem arroba e senha vazia)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "sem-arroba",
+  "senha": ""
+}
+
+### 400 - campo nao declarado no DTO
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "123456",
+  "perfil": "admin"
+}
+
+### 401 CREDENCIAIS_INVALIDAS - senha errada
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@oficina.com",
+  "senha": "senha-errada"
+}
+
+### 401 CREDENCIAIS_INVALIDAS - e-mail inexistente (mesma mensagem da senha errada)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ninguem@oficina.com",
+  "senha": "123456"
+}
+
+### 401 NAO_AUTENTICADO - rota protegida sem token
+GET {{baseUrl}}/clientes
+
+### 401 TOKEN_INVALIDO - header sem o esquema Bearer
+GET {{baseUrl}}/clientes
+Authorization: {{login.response.body.token}}
+
+### 401 TOKEN_INVALIDO - esquema errado
+GET {{baseUrl}}/clientes
+Authorization: Basic YWRtaW46MTIzNDU2
+
+### 401 TOKEN_INVALIDO - token malformado
+GET {{baseUrl}}/clientes
+Authorization: Bearer nao-e-um-jwt
+
+### 401 TOKEN_INVALIDO - assinatura invalida
+GET {{baseUrl}}/clientes
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5Ab2ZpY2luYS5jb20ifQ.assinatura-invalida
+
+### Rota publica: health nao exige token
+GET {{baseUrl}}/health

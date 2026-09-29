@@ -1,9 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import { StatusOrdemServico } from '@prisma/client';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
-import { criarAppDeTeste, limparDados } from './util-app-teste.js';
+import {
+  criarAppDeTeste,
+  limparDados,
+  type ClienteHttpAutenticado,
+} from './util-app-teste.js';
 
 interface CorpoErro {
   status: number;
@@ -58,6 +61,7 @@ interface ListaOrdens {
 
 describe('Ordens de servico (e2e)', () => {
   let app: INestApplication<App>;
+  let api: ClienteHttpAutenticado;
   let prisma: PrismaService;
 
   // Ids preparados no beforeEach
@@ -74,6 +78,7 @@ describe('Ordens de servico (e2e)', () => {
   beforeAll(async () => {
     const criado = await criarAppDeTeste();
     app = criado.app as INestApplication<App>;
+    api = criado.api;
     prisma = criado.prisma;
   });
 
@@ -192,7 +197,7 @@ describe('Ordens de servico (e2e)', () => {
   async function criarOrdem(
     extras: Record<string, unknown> = {},
   ): Promise<OrdemDetalhe> {
-    const resposta = await request(app.getHttpServer())
+    const resposta = await api
       .post('/ordens-servico')
       .send(novaOrdem(extras))
       .expect(201);
@@ -211,7 +216,7 @@ describe('Ordens de servico (e2e)', () => {
         : [status];
 
     for (const passo of caminho) {
-      await request(app.getHttpServer())
+      await api
         .patch(`/ordens-servico/${id}/status`)
         .send({ status: passo })
         .expect(200);
@@ -253,7 +258,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 400 com detalhes por campo invalido', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send({ veiculoId: 0, descricaoProblema: 'abc', itens: [] })
         .expect(400);
@@ -269,7 +274,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 400 quando o mesmo servicoId aparece duas vezes', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(
           novaOrdem({
@@ -292,7 +297,7 @@ describe('Ordens de servico (e2e)', () => {
     it.each(['status', 'valorTotal', 'dataAbertura', 'dataConclusao'])(
       'responde 400 quando o campo controlado pelo servidor (%s) e enviado',
       async (campo) => {
-        const resposta = await request(app.getHttpServer())
+        const resposta = await api
           .post('/ordens-servico')
           .send(novaOrdem({ [campo]: 'qualquer' }))
           .expect(400);
@@ -304,7 +309,7 @@ describe('Ordens de servico (e2e)', () => {
     );
 
     it('responde 400 quando precoUnitario e enviado no item', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(
           novaOrdem({
@@ -319,7 +324,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 404 quando o veiculo nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(novaOrdem({ veiculoId: 9999 }))
         .expect(404);
@@ -330,7 +335,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 404 quando o mecanico nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(novaOrdem({ mecanicoId: 9999 }))
         .expect(404);
@@ -341,7 +346,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 404 identificando o servico inexistente', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(novaOrdem({ itens: [{ servicoId: 9999, quantidade: 1 }] }))
         .expect(404);
@@ -352,7 +357,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 409 quando o mecanico esta inativo', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(novaOrdem({ mecanicoId: mecanicoInativoId }))
         .expect(409);
@@ -365,7 +370,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 409 quando o servico esta inativo', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .post('/ordens-servico')
         .send(
           novaOrdem({
@@ -382,7 +387,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('nao grava nada quando a validacao de negocio falha (transacao)', async () => {
-      await request(app.getHttpServer())
+      await api
         .post('/ordens-servico')
         .send(novaOrdem({ itens: [{ servicoId: 9999, quantidade: 1 }] }))
         .expect(404);
@@ -397,7 +402,7 @@ describe('Ordens de servico (e2e)', () => {
     it('reajuste no catalogo nao altera ordem existente', async () => {
       const ordem = await criarOrdem();
 
-      await request(app.getHttpServer())
+      await api
         .put(`/servicos/${servicoAId}`)
         .send({
           descricao: 'Troca de oleo e filtro',
@@ -407,9 +412,7 @@ describe('Ordens de servico (e2e)', () => {
         })
         .expect(200);
 
-      const depois = await request(app.getHttpServer())
-        .get(`/ordens-servico/${ordem.id}`)
-        .expect(200);
+      const depois = await api.get(`/ordens-servico/${ordem.id}`).expect(200);
 
       const corpo = depois.body as OrdemDetalhe;
 
@@ -424,7 +427,7 @@ describe('Ordens de servico (e2e)', () => {
       const ordem = await criarOrdem();
 
       // reajusta o servico A depois da abertura
-      await request(app.getHttpServer())
+      await api
         .put(`/servicos/${servicoAId}`)
         .send({
           descricao: 'Troca de oleo e filtro',
@@ -435,7 +438,7 @@ describe('Ordens de servico (e2e)', () => {
         .expect(200);
 
       // mantem A (1x), remove B, acrescenta C
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           descricaoProblema: 'Revisao completa antes da viagem.',
@@ -463,7 +466,7 @@ describe('Ordens de servico (e2e)', () => {
     it('permite relancar um servico que foi desativado apos entrar na ordem', async () => {
       const ordem = await criarOrdem();
 
-      await request(app.getHttpServer())
+      await api
         .put(`/servicos/${servicoAId}`)
         .send({
           descricao: 'Troca de oleo e filtro',
@@ -473,7 +476,7 @@ describe('Ordens de servico (e2e)', () => {
         })
         .expect(200);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           descricaoProblema: 'Somente a troca de oleo.',
@@ -487,7 +490,7 @@ describe('Ordens de servico (e2e)', () => {
     it('responde 409 ao incluir um servico inativo que nao estava na ordem', async () => {
       const ordem = await criarOrdem();
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           descricaoProblema: 'Incluindo servico inativo.',
@@ -501,7 +504,7 @@ describe('Ordens de servico (e2e)', () => {
     it('atribui e desatribui mecanico', async () => {
       const ordem = await criarOrdem();
 
-      const comMecanico = await request(app.getHttpServer())
+      const comMecanico = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           mecanicoId,
@@ -512,7 +515,7 @@ describe('Ordens de servico (e2e)', () => {
 
       expect((comMecanico.body as OrdemDetalhe).mecanico?.id).toBe(mecanicoId);
 
-      const semMecanico = await request(app.getHttpServer())
+      const semMecanico = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           mecanicoId: null,
@@ -527,7 +530,7 @@ describe('Ordens de servico (e2e)', () => {
     it('responde 400 quando veiculoId e enviado (veiculo e imutavel)', async () => {
       const ordem = await criarOrdem();
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           veiculoId: outroVeiculoId,
@@ -542,7 +545,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 404 quando a ordem nao existe', async () => {
-      await request(app.getHttpServer())
+      await api
         .put('/ordens-servico/9999')
         .send({
           descricaoProblema: 'Ordem inexistente.',
@@ -557,7 +560,7 @@ describe('Ordens de servico (e2e)', () => {
     it('percorre o fluxo feliz ABERTA -> EM_ANDAMENTO -> CONCLUIDA', async () => {
       const ordem = await criarOrdem({ mecanicoId });
 
-      const emAndamento = await request(app.getHttpServer())
+      const emAndamento = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: StatusOrdemServico.EM_ANDAMENTO })
         .expect(200);
@@ -567,7 +570,7 @@ describe('Ordens de servico (e2e)', () => {
         dataConclusao: null,
       });
 
-      const concluida = await request(app.getHttpServer())
+      const concluida = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: StatusOrdemServico.CONCLUIDA })
         .expect(200);
@@ -584,7 +587,7 @@ describe('Ordens de servico (e2e)', () => {
     it('permite cancelar direto de ABERTA, sem mecanico', async () => {
       const ordem = await criarOrdem();
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: StatusOrdemServico.CANCELADA })
         .expect(200);
@@ -598,7 +601,7 @@ describe('Ordens de servico (e2e)', () => {
     it('responde 409 em ABERTA -> CONCLUIDA', async () => {
       const ordem = await criarOrdem({ mecanicoId });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: StatusOrdemServico.CONCLUIDA })
         .expect(409);
@@ -612,7 +615,7 @@ describe('Ordens de servico (e2e)', () => {
     it('responde 409 ao iniciar sem mecanico atribuido', async () => {
       const ordem = await criarOrdem();
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: StatusOrdemServico.EM_ANDAMENTO })
         .expect(409);
@@ -633,7 +636,7 @@ describe('Ordens de servico (e2e)', () => {
         const ordem = await criarOrdem({ mecanicoId });
         await levarPara(ordem.id, StatusOrdemServico.CONCLUIDA);
 
-        const resposta = await request(app.getHttpServer())
+        const resposta = await api
           .patch(`/ordens-servico/${ordem.id}/status`)
           .send({ status: destino })
           .expect(409);
@@ -648,7 +651,7 @@ describe('Ordens de servico (e2e)', () => {
       const ordem = await criarOrdem();
       await levarPara(ordem.id, StatusOrdemServico.CANCELADA);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: StatusOrdemServico.EM_ANDAMENTO })
         .expect(409);
@@ -661,7 +664,7 @@ describe('Ordens de servico (e2e)', () => {
     it('responde 400 para status fora do enum', async () => {
       const ordem = await criarOrdem();
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .patch(`/ordens-servico/${ordem.id}/status`)
         .send({ status: 'PAUSADA' })
         .expect(400);
@@ -672,7 +675,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 404 quando a ordem nao existe', async () => {
-      await request(app.getHttpServer())
+      await api
         .patch('/ordens-servico/9999/status')
         .send({ status: StatusOrdemServico.CANCELADA })
         .expect(404);
@@ -685,7 +688,7 @@ describe('Ordens de servico (e2e)', () => {
       const ordem = await criarOrdem({ mecanicoId });
       await levarPara(ordem.id, StatusOrdemServico.CONCLUIDA);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           descricaoProblema: 'Tentando alterar depois de concluir.',
@@ -702,7 +705,7 @@ describe('Ordens de servico (e2e)', () => {
       const ordem = await criarOrdem();
       await levarPara(ordem.id, StatusOrdemServico.CANCELADA);
 
-      await request(app.getHttpServer())
+      await api
         .put(`/ordens-servico/${ordem.id}`)
         .send({
           descricaoProblema: 'Tentando alterar depois de cancelar.',
@@ -717,7 +720,7 @@ describe('Ordens de servico (e2e)', () => {
     it('exclui ordem aberta com 204 e remove os itens em cascata', async () => {
       const ordem = await criarOrdem();
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .delete(`/ordens-servico/${ordem.id}`)
         .expect(204);
 
@@ -736,7 +739,7 @@ describe('Ordens de servico (e2e)', () => {
       const ordem = await criarOrdem({ mecanicoId });
       await levarPara(ordem.id, StatusOrdemServico.EM_ANDAMENTO);
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .delete(`/ordens-servico/${ordem.id}`)
         .expect(409);
 
@@ -754,16 +757,12 @@ describe('Ordens de servico (e2e)', () => {
         const ordem = await criarOrdem({ mecanicoId });
         await levarPara(ordem.id, status);
 
-        await request(app.getHttpServer())
-          .delete(`/ordens-servico/${ordem.id}`)
-          .expect(409);
+        await api.delete(`/ordens-servico/${ordem.id}`).expect(409);
       },
     );
 
     it('responde 404 quando a ordem nao existe', async () => {
-      await request(app.getHttpServer())
-        .delete('/ordens-servico/9999')
-        .expect(404);
+      await api.delete('/ordens-servico/9999').expect(404);
     });
   });
 
@@ -819,9 +818,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('lista no formato resumido, da mais recente para a mais antiga', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/ordens-servico')
-        .expect(200);
+      const resposta = await api.get('/ordens-servico').expect(200);
 
       const corpo = resposta.body as ListaOrdens;
 
@@ -843,7 +840,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('pagina', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?page=2&limit=2')
         .expect(200);
 
@@ -854,7 +851,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra por um status', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?status=ABERTA')
         .expect(200);
 
@@ -862,7 +859,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra por varios status separados por virgula', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?status=ABERTA,EM_ANDAMENTO')
         .expect(200);
 
@@ -878,7 +875,7 @@ describe('Ordens de servico (e2e)', () => {
     it.each(['INVALIDO', 'aberta', 'ABERTA,INVALIDO'])(
       'responde 400 para status=%s',
       async (valor) => {
-        const resposta = await request(app.getHttpServer())
+        const resposta = await api
           .get(`/ordens-servico?status=${valor}`)
           .expect(400);
 
@@ -889,7 +886,7 @@ describe('Ordens de servico (e2e)', () => {
     );
 
     it('filtra por veiculo_id', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/ordens-servico?veiculo_id=${veiculoId}`)
         .expect(200);
 
@@ -897,7 +894,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra por mecanico_id', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/ordens-servico?mecanico_id=${mecanicoId}`)
         .expect(200);
 
@@ -905,7 +902,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra por cliente_id reunindo os veiculos do cliente', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/ordens-servico?cliente_id=${clienteId}`)
         .expect(200);
 
@@ -913,7 +910,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra pelo intervalo de datas com os dois extremos inclusivos', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?data_inicio=2026-03-01&data_fim=2026-03-31')
         .expect(200);
 
@@ -924,7 +921,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra somente pela data inicial', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?data_inicio=2026-04-01')
         .expect(200);
 
@@ -932,7 +929,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('filtra somente pela data final', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?data_fim=2026-03-01')
         .expect(200);
 
@@ -940,7 +937,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 400 quando data_inicio e maior que data_fim', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/ordens-servico?data_inicio=2026-04-01&data_fim=2026-03-01')
         .expect(400);
 
@@ -955,7 +952,7 @@ describe('Ordens de servico (e2e)', () => {
     it.each(['01/03/2026', '2026-3-1', 'ontem'])(
       'responde 400 para data_inicio=%s',
       async (valor) => {
-        const resposta = await request(app.getHttpServer())
+        const resposta = await api
           .get(`/ordens-servico?data_inicio=${encodeURIComponent(valor)}`)
           .expect(400);
 
@@ -966,7 +963,7 @@ describe('Ordens de servico (e2e)', () => {
     );
 
     it('combina status e intervalo de datas', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(
           '/ordens-servico?status=ABERTA,EM_ANDAMENTO&data_inicio=2026-03-31&data_fim=2026-04-01',
         )
@@ -981,7 +978,7 @@ describe('Ordens de servico (e2e)', () => {
     it('devolve o detalhe completo', async () => {
       const criada = await criarOrdem({ mecanicoId });
 
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/ordens-servico/${criada.id}`)
         .expect(200);
 
@@ -999,9 +996,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('responde 404 quando a ordem nao existe', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/ordens-servico/9999')
-        .expect(404);
+      const resposta = await api.get('/ordens-servico/9999').expect(404);
 
       expect(resposta.body).toEqual({
         status: 404,
@@ -1022,7 +1017,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /veiculos/:id/ordens-servico devolve o historico do veiculo', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/veiculos/${veiculoId}/ordens-servico`)
         .expect(200);
 
@@ -1034,7 +1029,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /veiculos/:id/ordens-servico aceita o filtro de status', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/veiculos/${veiculoId}/ordens-servico?status=CANCELADA`)
         .expect(200);
 
@@ -1045,7 +1040,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /veiculos/:id/ordens-servico devolve array vazio sem historico', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/veiculos/${outroVeiculoId}/ordens-servico`)
         .expect(200);
 
@@ -1053,7 +1048,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /veiculos/:id/ordens-servico responde 404 para veiculo inexistente', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get('/veiculos/9999/ordens-servico')
         .expect(404);
 
@@ -1063,7 +1058,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /mecanicos/:id/ordens-servico devolve as ordens do mecanico', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/mecanicos/${mecanicoId}/ordens-servico`)
         .expect(200);
 
@@ -1074,7 +1069,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /mecanicos/:id/ordens-servico devolve vazio para mecanico sem ordens', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/mecanicos/${mecanicoInativoId}/ordens-servico`)
         .expect(200);
 
@@ -1082,13 +1077,11 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /mecanicos/:id/ordens-servico responde 404 para mecanico inexistente', async () => {
-      await request(app.getHttpServer())
-        .get('/mecanicos/9999/ordens-servico')
-        .expect(404);
+      await api.get('/mecanicos/9999/ordens-servico').expect(404);
     });
 
     it('GET /clientes/:id/ordens-servico reune as ordens dos veiculos do cliente', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/clientes/${clienteId}/ordens-servico`)
         .expect(200);
 
@@ -1096,7 +1089,7 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /clientes/:id/ordens-servico aceita o filtro de status', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/clientes/${clienteId}/ordens-servico?status=ABERTA`)
         .expect(200);
 
@@ -1104,13 +1097,11 @@ describe('Ordens de servico (e2e)', () => {
     });
 
     it('GET /clientes/:id/ordens-servico responde 404 para cliente inexistente', async () => {
-      await request(app.getHttpServer())
-        .get('/clientes/9999/ordens-servico')
-        .expect(404);
+      await api.get('/clientes/9999/ordens-servico').expect(404);
     });
 
     it('responde 400 para status invalido no endpoint aninhado', async () => {
-      const resposta = await request(app.getHttpServer())
+      const resposta = await api
         .get(`/veiculos/${veiculoId}/ordens-servico?status=INVALIDO`)
         .expect(400);
 
